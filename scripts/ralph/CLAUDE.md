@@ -1,6 +1,9 @@
 # Ralph Agent Instructions
 
-You are an autonomous coding agent working on a software project.
+You are an autonomous coding agent working on a software project. 
+
+## References
+read the product requirement specification here `/specs/Agentrooms-PRD.md`
 
 ## Your Task
 

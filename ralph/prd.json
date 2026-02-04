@@ -1,0 +1,638 @@
+{
+  "project": "Agentrooms",
+  "branchName": "ralph/agentrooms-mvp",
+  "description": "An autonomous NFT trading platform where AI agents negotiate and execute deals on behalf of users, powered by GLM AI and ARK Network blockchain",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Setup Development Environment",
+      "description": "As a developer, I want to set up the complete development environment with Docker Compose so that I can start building the application locally",
+      "acceptanceCriteria": [
+        "Docker Compose file created with PostgreSQL 16, Redis 7, and BullMQ UI services",
+        "All services start successfully with docker-compose up -d",
+        "PostgreSQL accessible on port 5432",
+        "Redis accessible on port 6379",
+        "BullMQ UI accessible on port 3001",
+        "Environment variables configured in .env file",
+        "Health checks working for all services",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 1: Foundation - Week 1-2"
+    },
+    {
+      "id": "US-002",
+      "title": "Database Schema Implementation",
+      "description": "As a developer, I want to implement the complete PostgreSQL database schema so that all application data can be stored and queried efficiently",
+      "acceptanceCriteria": [
+        "All 8 core tables created: users, nfts, rooms, agents, swarms, deals, messages, agent_performance",
+        "All foreign key relationships established correctly",
+        "Indexes created on hot paths: wallet_address, room_id, agent_id, status fields",
+        "Check constraints implemented for enums and validations",
+        "Database migrations working with Prisma or TypeORM",
+        "Seed script creates mock NFT data (BAYC collection with 20+ NFTs)",
+        "Database connection pooling configured (50 connections)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 1: Foundation - Week 1-2"
+    },
+    {
+      "id": "US-003",
+      "title": "Web3 Wallet Authentication",
+      "description": "As a user, I want to authenticate using my Web3 wallet signature so that I can securely access the platform without passwords",
+      "acceptanceCriteria": [
+        "POST /auth/challenge endpoint generates unique nonce and message",
+        "POST /auth/verify endpoint validates wallet signature using ethers.js",
+        "JWT tokens issued with 24-hour expiration",
+        "Refresh token mechanism implemented",
+        "GET /auth/me endpoint returns authenticated user data",
+        "Nonce validation prevents replay attacks",
+        "User record created/updated on successful authentication",
+        "JWT includes userId and walletAddress in payload",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 1: Foundation - Week 1-2"
+    },
+    {
+      "id": "US-004",
+      "title": "REST API Controllers",
+      "description": "As a backend developer, I want to implement all REST API endpoints so that the frontend can interact with the application",
+      "acceptanceCriteria": [
+        "Authentication endpoints: /auth/challenge, /auth/verify, /auth/refresh, /auth/me",
+        "Room endpoints: GET /rooms, GET /rooms/:id, GET /rooms/:id/stats",
+        "Agent endpoints: POST /agents/spawn, GET /agents/:id, DELETE /agents/:id",
+        "Swarm endpoints: POST /swarms/spawn, GET /swarms/:id, PATCH /swarms/:id",
+        "Deal endpoints: GET /deals/:id, GET /deals/my",
+        "NFT endpoints: GET /nfts, POST /nfts/verify-ownership",
+        "All endpoints use JWT authentication guard (except auth endpoints)",
+        "Request validation using class-validator DTOs",
+        "Error handling with proper HTTP status codes",
+        "Swagger documentation auto-generated",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 2: Core Backend - Week 3-4"
+    },
+    {
+      "id": "US-005",
+      "title": "WebSocket Real-time Communication",
+      "description": "As a user, I want to receive real-time updates about room activity so that I can watch agent negotiations as they happen",
+      "acceptanceCriteria": [
+        "Socket.io server integrated with NestJS",
+        "WebSocket authentication using JWT tokens",
+        "Client can join/leave rooms with join_room and leave_room events",
+        "Server broadcasts: agent_joined, agent_message, room_stats, deal_locked, deal_verifying, deal_completed, agent_left",
+        "Redis Pub/Sub integration for multi-instance support",
+        "Message sequencing with timestamps",
+        "Connection state management (reconnection handling)",
+        "Room-based broadcasting (users only receive messages from their joined rooms)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 2: Core Backend - Week 3-4"
+    },
+    {
+      "id": "US-006",
+      "title": "Redis Integration",
+      "description": "As a developer, I want to integrate Redis for caching and Pub/Sub so that the application can handle real-time updates and scale efficiently",
+      "acceptanceCriteria": [
+        "Redis client connected with proper error handling",
+        "Pub/Sub channels set up for room updates: room:{roomId}",
+        "Caching implemented for NFT metadata (1 hour TTL)",
+        "Caching implemented for user sessions (24 hour TTL)",
+        "Live stats using sorted sets: room:{roomId}:floor and room:{roomId}:bids",
+        "Room stats caching with 5 second TTL",
+        "Rate limiting counters for agents and API endpoints",
+        "WebSocket session tracking: ws:session:{sessionId}",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 2: Core Backend - Week 3-4"
+    },
+    {
+      "id": "US-007",
+      "title": "BullMQ Job Queue Setup",
+      "description": "As a developer, I want to set up BullMQ job queues so that background tasks can be processed asynchronously",
+      "acceptanceCriteria": [
+        "BullMQ connected to Redis with proper configuration",
+        "Five queues created: glm-requests, deal-verification, analytics, cleanup, notifications",
+        "Workers integrated in NestJS using @Processor decorators",
+        "Job priorities configured (Critical, High, Medium, Low)",
+        "Retry strategies implemented with exponential backoff",
+        "Job timeouts configured per queue type",
+        "BullMQ dashboard accessible and showing queue stats",
+        "Failed job handling and dead letter queue",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 2: Core Backend - Week 3-4"
+    },
+    {
+      "id": "US-008",
+      "title": "GLM API Integration",
+      "description": "As a developer, I want to integrate the GLM API so that AI agents can generate natural language responses",
+      "acceptanceCriteria": [
+        "GLM API client configured with API key from environment",
+        "System prompt template builder with agent personality and context",
+        "User message template for trigger events",
+        "Strategy-specific instructions for: competitive, patient, aggressive, conservative, sniper",
+        "Communication style support: formal, casual, professional, aggressive",
+        "API calls use temperature 0.8 and max_tokens 150",
+        "Error handling for API failures and rate limits",
+        "Requests queued via BullMQ to prevent rate limit issues",
+        "Response processing extracts price mentions and intent",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 3: AI Integration - Week 5"
+    },
+    {
+      "id": "US-009",
+      "title": "Agent Personality System",
+      "description": "As a user, I want agents to have different personalities and strategies so that negotiations feel dynamic and realistic",
+      "acceptanceCriteria": [
+        "Four communication styles implemented: formal, casual, professional, aggressive",
+        "Five strategies implemented: competitive, patient, aggressive, conservative, sniper",
+        "Each strategy has unique prompt instructions for GLM",
+        "Agents adjust behavior based on room context (floor price, top bid, competitor count)",
+        "Personality influences message tone and phrasing",
+        "Strategy influences price adjustment decisions",
+        "Agents show emotional responses based on personality",
+        "Testing validates distinct behavior patterns between personalities",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 3: AI Integration - Week 5"
+    },
+    {
+      "id": "US-010",
+      "title": "Agent Decision Logic",
+      "description": "As a developer, I want agents to make autonomous decisions based on market context so that they can negotiate effectively without user input",
+      "acceptanceCriteria": [
+        "Agents monitor room chat messages via WebSocket",
+        "Decision engine evaluates: current floor price, competing offers, own mandate, personality traits",
+        "Price adjustment logic based on strategy and market conditions",
+        "Offer acceptance/rejection logic validates against mandate",
+        "Counter-offer generation with strategic pricing",
+        "Intent detection from GLM responses: offer, counter, accept, reject, comment",
+        "Sentiment analysis of agent responses",
+        "Message summaries saved to database (not full chat)",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 3: AI Integration - Week 5"
+    },
+    {
+      "id": "US-011",
+      "title": "Rust Service HTTP API",
+      "description": "As a backend developer, I want a Rust service providing cryptographic and consensus endpoints so that deal verification is secure and efficient",
+      "acceptanceCriteria": [
+        "Actix-web or Axum server running on port 8080",
+        "POST /verify-signature endpoint validates Ed25519 signatures",
+        "POST /run-consensus endpoint executes BFT consensus with 7 verifiers",
+        "POST /execute-escrow endpoint handles blockchain transactions",
+        "GET /health endpoint for health checks",
+        "Error handling returns proper JSON responses",
+        "Signature verification uses ed25519-dalek library",
+        "Service starts automatically in development environment",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 4: Blockchain Integration - Week 6"
+    },
+    {
+      "id": "US-012",
+      "title": "BFT Consensus Implementation",
+      "description": "As a developer, I want BFT consensus to verify deals so that transactions are approved by multiple verifiers before execution",
+      "acceptanceCriteria": [
+        "BFT consensus selects 7 random verifiers",
+        "Each verifier checks: NFT ownership, buyer balance, signature validity",
+        "Approval threshold set to 67% (5 of 7 verifiers)",
+        "Consensus result includes: approved boolean, verifier count, approval count, threshold",
+        "Verification completes within 3-5 seconds",
+        "Failed consensus returns detailed error information",
+        "Consensus result stored in deals.consensus_result JSONB field",
+        "Mock verifiers implemented for testnet development",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 4: Blockchain Integration - Week 6"
+    },
+    {
+      "id": "US-013",
+      "title": "ARK Network Integration",
+      "description": "As a developer, I want to integrate with ARK Network testnet so that NFT ownership can be verified and transactions executed on-chain",
+      "acceptanceCriteria": [
+        "ARK testnet client configured with RPC URL",
+        "NFT ownership query function implemented",
+        "USDC balance check function implemented",
+        "Escrow smart contract interaction for NFT transfers",
+        "Transaction submission with proper gas estimation",
+        "Transaction confirmation waiting (3 confirmations minimum)",
+        "Transaction receipt parsing for tx_hash and block_number",
+        "Error handling for blockchain failures",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 4: Blockchain Integration - Week 6"
+    },
+    {
+      "id": "US-014",
+      "title": "Deal Execution Flow",
+      "description": "As a user, I want deals to execute automatically when agents agree so that I receive my NFT or payment without manual intervention",
+      "acceptanceCriteria": [
+        "Agreement detection when agent sends acceptance message",
+        "Deal locked in database with status 'locked'",
+        "Both agents frozen from making new offers",
+        "Background verification job queued via BullMQ",
+        "NFT ownership verified via Rust service",
+        "Buyer balance verified via Rust service",
+        "BFT consensus executed with 7 verifiers",
+        "Escrow smart contract executed if consensus approves",
+        "Deal status updated: locked → verifying → completed/failed",
+        "WebSocket updates broadcast to users at each stage",
+        "Transaction hash and block number saved to database",
+        "Agents leave room after completion",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 4: Blockchain Integration - Week 6"
+    },
+    {
+      "id": "US-015",
+      "title": "Next.js Frontend Setup",
+      "description": "As a developer, I want the Next.js frontend scaffolded with necessary dependencies so that I can build the user interface",
+      "acceptanceCriteria": [
+        "Next.js 14+ project created with App Router",
+        "TypeScript configured with strict mode",
+        "Tailwind CSS integrated and working",
+        "wagmi and viem installed for Web3 functionality",
+        "Socket.io-client installed for WebSocket",
+        "Axios or Fetch API wrapper for HTTP requests",
+        "React Context or Zustand for state management",
+        "ESLint and Prettier configured",
+        "Development server runs on port 3002",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-016",
+      "title": "Wallet Connection UI",
+      "description": "As a user, I want to connect my Web3 wallet so that I can authenticate and use the platform",
+      "acceptanceCriteria": [
+        "Wallet connection button in header/navbar",
+        "WalletConnect v2 integration for multiple wallet support",
+        "Wallet selection modal with popular wallets (MetaMask, WalletConnect, Coinbase)",
+        "Challenge-response authentication flow with signature request",
+        "JWT token stored in localStorage after successful auth",
+        "Connected wallet address displayed in UI",
+        "Disconnect wallet functionality",
+        "Automatic reconnection on page refresh",
+        "Error handling for rejected signatures",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-017",
+      "title": "Room List and Selection UI",
+      "description": "As a user, I want to browse and select trading rooms so that I can join rooms for NFT collections I'm interested in",
+      "acceptanceCriteria": [
+        "Room list page displays all active rooms",
+        "Each room card shows: collection name, active agents count, floor price, top bid",
+        "Filter rooms by collection dropdown",
+        "Search functionality for room names",
+        "Real-time stats update via WebSocket",
+        "Click room card to navigate to room detail page",
+        "Loading states for data fetching",
+        "Empty state when no rooms available",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-018",
+      "title": "Agent Spawning Interface",
+      "description": "As a user, I want to spawn an AI agent with my trading parameters so that it can negotiate on my behalf",
+      "acceptanceCriteria": [
+        "Spawn agent modal/form with all required fields",
+        "Role selection: buyer or seller (radio buttons)",
+        "NFT selection dropdown for sellers (with ownership verification)",
+        "Price inputs: min acceptable, max willing, starting price",
+        "Strategy selection: competitive, patient, aggressive, conservative, sniper",
+        "Personality selection: formal, casual, professional, aggressive",
+        "Agent name and avatar customization",
+        "Form validation with error messages",
+        "Loading state during agent creation",
+        "Success confirmation with agent details",
+        "Agent appears in room after spawning",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-019",
+      "title": "Real-time Trading Room UI",
+      "description": "As a user, I want to watch agents negotiate in real-time so that I can see my agent's performance and market dynamics",
+      "acceptanceCriteria": [
+        "Live chat window showing all agent messages with timestamps",
+        "Agent sidebar listing active buyers and sellers with status",
+        "Market stats panel: floor price, top bid, active agents count",
+        "Real-time message updates via WebSocket",
+        "Auto-scroll to latest messages",
+        "Agent avatars and names displayed with messages",
+        "Price mentions highlighted in messages",
+        "Deal notifications: locked → verifying → completed states",
+        "Agent status indicators (active, negotiating, locked, completed)",
+        "Loading states for initial data",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-020",
+      "title": "Deal Completion Flow UI",
+      "description": "As a user, I want to see clear visual feedback when deals complete so that I know when my agent successfully bought or sold an NFT",
+      "acceptanceCriteria": [
+        "Deal locked notification appears in room",
+        "Progress indicator shows verification stages: ownership → balance → consensus → execution",
+        "Deal completed modal/toast with: buyer, seller, NFT, final price, transaction hash",
+        "Transaction hash links to block explorer",
+        "Confetti or celebration animation on successful deal",
+        "Error notification if deal verification fails",
+        "Agent marked as completed in UI",
+        "Deal appears in user's deal history immediately",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-021",
+      "title": "User Dashboard",
+      "description": "As a user, I want a dashboard to manage my agents and view deal history so that I can track my trading activity",
+      "acceptanceCriteria": [
+        "My Agents section shows active and completed agents",
+        "Agent cards display: name, role, status, room, current price, messages sent",
+        "Pause/resume/delete controls for user's own agents",
+        "Deal History section shows all completed deals",
+        "Deal cards display: NFT, buyer/seller, final price, timestamp, transaction hash",
+        "Analytics section: total deals, success rate, average negotiation time, best deals",
+        "Filter deals by status and date range",
+        "Pagination for large datasets",
+        "Real-time updates for active agents",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Phase 5: Frontend Development - Week 7-8"
+    },
+    {
+      "id": "US-022",
+      "title": "Swarm Mode Implementation",
+      "description": "As a developer/tester, I want to spawn multiple agents simultaneously so that I can test market dynamics and agent behavior at scale",
+      "acceptanceCriteria": [
+        "Four presets implemented: small_test (5 agents), balanced_market (10), high_competition (20), buyers_market (20)",
+        "Mock wallet generation for swarm agents",
+        "Mock NFTs used for testnet safety",
+        "POST /swarms/spawn creates swarm with all agents",
+        "Swarm control endpoints: pause, resume, stop",
+        "Live monitoring dashboard shows swarm stats",
+        "Real-time updates for deals completed in swarm",
+        "Export analytics to JSON",
+        "Swarm cleanup removes all agents on stop",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Phase 6: Swarm Mode - Week 9"
+    },
+    {
+      "id": "US-023",
+      "title": "Swarm Analytics Dashboard",
+      "description": "As a tester, I want to view analytics from swarm tests so that I can understand agent behavior patterns and market dynamics",
+      "acceptanceCriteria": [
+        "Dashboard shows: total agents, active agents, deals completed, success rate",
+        "Average deal time chart",
+        "Price distribution histogram",
+        "Strategy performance comparison",
+        "Personality effectiveness metrics",
+        "Best/worst performing agents list",
+        "Timeline of deals with price trends",
+        "Export data as JSON for external analysis",
+        "Real-time updates during active swarm",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Phase 6: Swarm Mode - Week 9"
+    },
+    {
+      "id": "US-024",
+      "title": "Unit Testing Suite",
+      "description": "As a developer, I want comprehensive unit tests so that code quality is maintained and regressions are prevented",
+      "acceptanceCriteria": [
+        "Jest configured for both NestJS backend and Next.js frontend",
+        "Unit tests for all service methods (AgentsService, RoomsService, DealsService, etc.)",
+        "Tests for authentication flow (challenge, verify, JWT validation)",
+        "Tests for GLM prompt generation and response processing",
+        "Tests for agent decision logic",
+        "Tests for BFT consensus algorithm",
+        "Mock implementations for external APIs (GLM, ARK)",
+        "80%+ code coverage achieved",
+        "All tests passing with npm test",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-025",
+      "title": "Integration Testing",
+      "description": "As a developer, I want integration tests for API endpoints so that the full request-response cycle is verified",
+      "acceptanceCriteria": [
+        "Supertest configured for NestJS API testing",
+        "Test database setup/teardown for each test suite",
+        "E2E tests for authentication endpoints",
+        "E2E tests for agent spawning and lifecycle",
+        "E2E tests for deal execution flow",
+        "E2E tests for WebSocket events",
+        "Tests validate response status codes, headers, and body structure",
+        "Tests use real JWT tokens for authenticated endpoints",
+        "All integration tests passing",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-026",
+      "title": "Rate Limiting Implementation",
+      "description": "As a developer, I want rate limiting on API endpoints so that the service is protected from abuse",
+      "acceptanceCriteria": [
+        "Global rate limit: 100 requests per minute per IP",
+        "Agent spawn endpoint: 5 agents per hour per user",
+        "GLM API requests queued to respect external rate limits",
+        "Redis-based rate limiting counters",
+        "Rate limit headers in responses (X-RateLimit-Limit, X-RateLimit-Remaining)",
+        "429 status code returned when limit exceeded",
+        "Agent message rate limit: 10 messages per minute per agent",
+        "Rate limits configurable via environment variables",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-027",
+      "title": "Security Hardening",
+      "description": "As a developer, I want the application secured against common vulnerabilities so that user data and funds are protected",
+      "acceptanceCriteria": [
+        "Input validation on all endpoints using class-validator",
+        "SQL injection prevention via ORM parameterized queries",
+        "XSS prevention with proper output encoding",
+        "CORS configured for allowed origins only",
+        "Helmet.js middleware for security headers",
+        "JWT secret strong and from environment variable",
+        "Sensitive data not logged (API keys, private keys, passwords)",
+        "HTTPS enforced in production",
+        "WebSocket authentication validated",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-028",
+      "title": "Error Handling and Logging",
+      "description": "As a developer, I want comprehensive error handling and logging so that issues can be diagnosed and resolved quickly",
+      "acceptanceCriteria": [
+        "Global exception filter in NestJS catches all errors",
+        "Errors formatted with proper HTTP status codes and messages",
+        "Sensitive data not exposed in error responses",
+        "Winston or Pino logger configured with log levels",
+        "Structured logging with request IDs for tracing",
+        "Critical errors logged with stack traces",
+        "GLM API failures logged with retry information",
+        "Blockchain transaction failures logged with context",
+        "Log rotation configured for production",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-029",
+      "title": "Performance Optimization",
+      "description": "As a developer, I want the application optimized for performance so that users have a smooth experience",
+      "acceptanceCriteria": [
+        "Database query optimization with proper indexes",
+        "N+1 query prevention with eager loading",
+        "Redis caching for frequently accessed data",
+        "WebSocket message batching for high-frequency updates",
+        "Frontend code splitting for faster initial load",
+        "Image optimization for NFT thumbnails",
+        "API response times under 200ms for cached data",
+        "Room with 20 agents maintains smooth real-time updates",
+        "Connection pooling prevents database bottlenecks",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Phase 7: Testing & Polish - Week 10"
+    },
+    {
+      "id": "US-030",
+      "title": "Production Deployment Configuration",
+      "description": "As a DevOps engineer, I want deployment configurations ready so that the application can be deployed to production",
+      "acceptanceCriteria": [
+        "Dockerfile for NestJS backend",
+        "Dockerfile for Next.js frontend",
+        "Dockerfile for Rust services",
+        "Docker Compose production configuration",
+        "Environment variable management for production",
+        "PostgreSQL migration scripts ready",
+        "Redis persistence configured",
+        "Health check endpoints implemented",
+        "Graceful shutdown handling",
+        "Deployment documentation written",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 8: Deployment Prep - Week 11"
+    },
+    {
+      "id": "US-031",
+      "title": "Monitoring and Alerting",
+      "description": "As an operator, I want monitoring and alerting configured so that I'm notified of issues before users are impacted",
+      "acceptanceCriteria": [
+        "Health check endpoint returns service status",
+        "Metrics exported for: API response times, queue lengths, active agents, deal completion rate",
+        "Application logs forwarded to centralized logging",
+        "Error tracking configured (Sentry or similar)",
+        "Uptime monitoring configured",
+        "Alert rules for: service down, high error rate, database connection failures, Redis connection failures",
+        "Dashboard showing key metrics",
+        "Alert notifications via email/Slack",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Phase 8: Deployment Prep - Week 11"
+    },
+    {
+      "id": "US-032",
+      "title": "Documentation",
+      "description": "As a developer, I want comprehensive documentation so that the codebase is maintainable and new developers can onboard quickly",
+      "acceptanceCriteria": [
+        "README with project overview and setup instructions",
+        "Architecture documentation with diagrams",
+        "API documentation auto-generated with Swagger",
+        "Database schema documentation with ERD",
+        "WebSocket event documentation",
+        "Development workflow guide",
+        "Deployment guide",
+        "Troubleshooting guide",
+        "Code comments for complex logic",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Phase 8: Deployment Prep - Week 11"
+    }
+  ]
+}
