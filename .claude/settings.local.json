@@ -7,7 +7,13 @@
       "Bash(./scripts/ralph/ralph.sh:*)",
       "Bash(npm install:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(docker --version:*)",
+      "Bash(open:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(pg_isready:*)",
+      "Bash(redis-cli:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [
       "Bash(sudo :*)",
@@ -17,6 +23,7 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chrome-devtools"
   ],
@@ -30,6 +37,5 @@
         "~/.claude.json"
       ]
     }
-  },
-  "enableAllProjectMcpServers": true
+  }
 }

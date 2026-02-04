@@ -1,0 +1,60 @@
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: agentrooms-postgres
+    environment:
+      POSTGRES_DB: agentrooms
+      POSTGRES_USER: agentrooms
+      POSTGRES_PASSWORD: dev_password_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentrooms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentrooms-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: agentrooms-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentrooms-network
+
+  # Redis Commander (Alternative to BullMQ UI for Redis visualization)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: agentrooms-redis-ui
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "3001:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentrooms-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  agentrooms-network:
+    driver: bridge
