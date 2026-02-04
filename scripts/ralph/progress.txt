@@ -7,6 +7,10 @@ Started: Thu Feb  5 03:51:30 +07 2026
 - TypeScript typecheck script in package.json: `npm run typecheck`
 - Environment variables stored in .env file (gitignored), with .env.example for reference
 - Health checks configured for all Docker services
+- Database ORM: Prisma with PostgreSQL, schema in backend/prisma/schema.prisma
+- Connection pooling configured via DATABASE_URL query params: connection_limit=50&pool_timeout=10
+- Run migrations with: `cd backend && npx prisma migrate dev --name <name>`
+- Run seed script with: `cd backend && npx prisma db seed`
 ---
 
 ## 2026-02-05 04:15 - US-001
@@ -38,4 +42,38 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * All Docker services use the `agentrooms-network` bridge network for inter-service communication
   * PostgreSQL and Redis are accessible on standard ports (5432, 6379)
   * Redis Commander UI is accessible on port 3001 (mapped from internal port 8081)
+---
+## 2026-02-05 04:28 - US-002
+- What was implemented:
+  * Installed Prisma ORM (@prisma/client and prisma) with PostgreSQL support
+  * Defined complete Prisma schema with all 8 core tables: users, nfts, rooms, agents, swarms, deals, messages, agent_performance
+  * Established all foreign key relationships with proper cascade rules (CASCADE, SET NULL)
+  * Added indexes on hot paths: wallet_address, room_id, agent_id, status fields
+  * Implemented check constraints using Prisma's @db annotations
+  * Configured DATABASE_URL with connection pooling: connection_limit=50, pool_timeout=10
+  * Created initial database migration (20260204212758_init)
+  * Created seed script (prisma/seed.ts) with 25 BAYC NFTs, 10 Cool Cats NFTs, and 2 trading rooms
+  * Successfully ran migrations and seeded database
+  * Typecheck passes
+
+- Files changed:
+  * .env.example (modified - added connection pooling params)
+  * backend/package.json (modified - added Prisma dependencies and seed config)
+  * backend/package-lock.json (modified - Prisma packages)
+  * backend/.gitignore (created - by Prisma init)
+  * backend/prisma.config.ts (created - Prisma configuration)
+  * backend/prisma/schema.prisma (created - database schema)
+  * backend/prisma/seed.ts (created - seed script)
+  * backend/prisma/migrations/ (created - migration files)
+
+- **Learnings for future iterations:**
+  * Prisma uses `gen_random_uuid()` for UUID generation in PostgreSQL
+  * Prisma init creates a default .env file that needs to be replaced with the correct DATABASE_URL
+  * Connection pooling is configured via query parameters in DATABASE_URL: ?connection_limit=50&pool_timeout=10
+  * Prisma schema uses snake_case for database columns via @map() while keeping camelCase in TypeScript
+  * Seed scripts are configured in package.json under "prisma.seed" key
+  * Use `npx prisma migrate dev --name <name>` to create and apply migrations
+  * Use `npx prisma db seed` to run seed scripts
+  * All Prisma commands should be run from the directory containing prisma.config.ts (backend/)
+  * Prisma Client is generated to node_modules/.prisma/client for easy importing
 ---
