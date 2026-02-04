@@ -1,3 +1,41 @@
 # Ralph Progress Log
 Started: Thu Feb  5 03:51:30 +07 2026
 ---
+## Codebase Patterns
+- Project structure: Backend (NestJS), Frontend (Next.js), Rust services in separate directories
+- Docker Compose used for local development infrastructure (PostgreSQL, Redis, UI tools)
+- TypeScript typecheck script in package.json: `npm run typecheck`
+- Environment variables stored in .env file (gitignored), with .env.example for reference
+- Health checks configured for all Docker services
+---
+
+## 2026-02-05 04:15 - US-001
+- What was implemented:
+  * Created project structure with backend/, frontend/, rust-services/ directories
+  * Created Docker Compose file with PostgreSQL 16, Redis 7, and Redis Commander UI
+  * Configured environment variables in .env and .env.example files
+  * Set up basic NestJS backend with TypeScript configuration
+  * Created health endpoint in app.controller.ts
+  * Added typecheck script to package.json
+
+- Files changed:
+  * docker-compose.yml (created)
+  * .env.example (created)
+  * .gitignore (created)
+  * backend/package.json (created)
+  * backend/tsconfig.json (created)
+  * backend/src/main.ts (created)
+  * backend/src/app.module.ts (created)
+  * backend/src/app.controller.ts (created)
+  * backend/src/app.service.ts (created)
+
+- **Learnings for future iterations:**
+  * Docker Compose services require correct image names - used `rediscommander/redis-commander:latest` for Redis UI instead of non-existent BullMQ Board images
+  * Docker Desktop must be running before executing docker-compose commands
+  * Health checks use `condition: service_healthy` for dependencies between services
+  * Basic NestJS structure includes: main.ts (bootstrap), app.module.ts (root module), app.controller.ts (endpoints), app.service.ts (business logic)
+  * TypeScript strict mode is disabled in initial setup for easier development
+  * All Docker services use the `agentrooms-network` bridge network for inter-service communication
+  * PostgreSQL and Redis are accessible on standard ports (5432, 6379)
+  * Redis Commander UI is accessible on port 3001 (mapped from internal port 8081)
+---
