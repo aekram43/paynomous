@@ -38,6 +38,7 @@ PRD_FILE="$SCRIPT_DIR/prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
+STATE_FILE="$SCRIPT_DIR/.iteration-state.json"
 
 # Archive previous run if branch changed
 if [ -f "$PRD_FILE" ] && [ -f "$LAST_BRANCH_FILE" ]; then
@@ -81,20 +82,59 @@ fi
 
 echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
 
+# Initialize or read state file
+if [ ! -f "$STATE_FILE" ]; then
+  echo '{"current_story":"none","iteration":0,"started_at":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "$STATE_FILE"
+fi
+
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
   echo "==============================================================="
   echo "  Ralph Iteration $i of $MAX_ITERATIONS ($TOOL)"
   echo "==============================================================="
 
+  # Update state file with current iteration
+  CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo '{}')
+  jq --arg iter "$i" '.iteration = ($iter | tonumber)' <<< "$CURRENT_STATE" > "$STATE_FILE"
+
   # Run the selected tool with the ralph prompt
   if [[ "$TOOL" == "amp" ]]; then
     OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
   else
-    # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
+    # Read current state
+    PREV_STORY=$(jq -r '.current_story // "none"' "$STATE_FILE" 2>/dev/null || echo "none")
+    PREV_ITER=$(jq -r '.iteration // 0' "$STATE_FILE" 2>/dev/null || echo "0")
+
+    # Claude Code: Inject iteration context into prompt
+    # Create prompt with iteration number and instructions
+    PROMPT=$(cat <<EOF
+# ITERATION CONTEXT
+
+**This is iteration $i of $MAX_ITERATIONS**
+
+Previous iteration: $PREV_ITER
+Last story being worked on: $PREV_STORY
+
+IMPORTANT: You are in a loop. Previous iterations (if any) may have started this work but did not complete it.
+
+Before starting:
+1. Check \`progress.txt\` for any notes about this user story from previous iterations
+2. Check git status to see if there are uncommitted changes from previous iterations
+3. If previous iterations started but didn't finish, CONTINUE from where they left off - don't start over
+4. If this is the first attempt at the current user story, begin implementation
+
+Your goal: Complete ONE user story in this iteration and commit it.
+
+State file location: $STATE_FILE (you can read this for context)
+
+---
+
+$(cat "$SCRIPT_DIR/CLAUDE.md")
+EOF
+)
+    OUTPUT=$(echo "$PROMPT" | claude --dangerously-skip-permissions --print 2>&1 | tee /dev/stderr) || true
   fi
-  
+
   # Check for completion signal
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
     echo ""
@@ -102,7 +142,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     echo "Completed at iteration $i of $MAX_ITERATIONS"
     exit 0
   fi
-  
+
   echo "Iteration $i complete. Continuing..."
   sleep 2
 done
