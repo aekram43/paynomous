@@ -390,3 +390,50 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Jest configuration already existed (jest.config.js) but test script in package.json needed updating
   * @nestjs/testing provides Test.createTestingModule for dependency injection in unit tests
 ---
+## 2026-02-05 21:30 - US-010
+- What was implemented:
+  * Created comprehensive AgentDecisionService with 600+ lines of autonomous decision logic
+  * Implemented decision engine that evaluates market context (floor price, top bid, active buyers/sellers)
+  * Built strategy-specific response logic: aggressive (always respond), competitive (react to changes), patient (wait for good offers), conservative (cautious), sniper (watch quietly)
+  * Implemented price adjustment logic based on strategy and market conditions
+  * Created offer acceptance/rejection validation against agent mandates (min/max price enforcement)
+  * Built counter-offer generation with strategic pricing (different percentages per strategy)
+  * Integrated message processing that saves intent, price mentioned, and sentiment to database
+  * Updated GlmProcessor to broadcast agent messages via WebSocket after GLM response
+  * Extended RedisService with helper methods: getFloorPrice, getTopBid, updateFloorPrice, updateTopBid, removeAgentFromFloor, removeAgentFromBids
+  * Updated AgentsService to initialize Redis floor/bid tracking on agent spawn
+  * Updated AgentsService to broadcast agent_joined event via WebSocket
+  * Updated AgentsService deleteAgent to clean up Redis and broadcast agent_left event
+  * Added avatar field to SpawnAgentDto for agent customization
+  * Updated AgentsModule to import GlmModule, WebsocketModule, and BullMQ
+  * Updated QueuesModule to import WebsocketModule for processor access
+  * Typecheck passes
+
+- Files changed:
+  * backend/src/agents/agent-decision.service.ts (created - 600+ lines)
+  * backend/src/agents/agents.service.ts (modified - added Redis integration and WebSocket broadcasting)
+  * backend/src/agents/agents.module.ts (modified - imported required modules)
+  * backend/src/agents/dto/spawn-agent.dto.ts (modified - added avatar field)
+  * backend/src/redis/redis.service.ts (modified - added 6 helper methods for agent decision logic)
+  * backend/src/queues/processors/glm.processor.ts (modified - integrated WebSocket broadcasting)
+  * backend/src/queues/queues.module.ts (modified - imported WebsocketModule)
+  * scripts/ralph/prd.json (modified - set US-010 passes to true)
+
+- **Learnings for future iterations:**
+  * Agent decision logic requires comprehensive market context: floor price, top bid, competitor counts, recent messages
+  * Strategy patterns should be distinct: aggressive responds always, patient waits strategically, sniper watches quietly
+  * Decision engine needs to evaluate "shouldRespond" first before generating expensive GLM requests
+  * Price adjustment logic should respect agent mandates (never go below min for sellers, never exceed max for buyers)
+  * Counter-offer calculations use percentages based on strategy: aggressive (50% toward offer), patient (30%), competitive (60%)
+  * Redis sorted sets are perfect for floor/bid tracking: zadd for updates, zrange/zrevrange for queries, zrem for cleanup
+  * WebSocket broadcasting should happen after GLM processing completes (in processor onCompleted)
+  * forwardRef is required for circular dependencies between AgentsModule and WebsocketModule
+  * Intent detection from GLM responses already implemented in US-008 (offer, counter, accept, reject, comment)
+  * Sentiment analysis from GLM responses already implemented in US-008 (positive, negative, neutral)
+  * Message summaries use database table with: messageType, priceMentioned, sentiment (not storing full chat text)
+  * Agent spawn should initialize Redis tracking immediately (floor for sellers, bid for buyers)
+  * Agent delete should clean up Redis tracking and broadcast agent_left event
+  * BullMQ job data should include agentId for tracking and debugging
+  * Decision service methods are designed to be called by future scheduler or event triggers
+  * Market context gathering hits both database (recent messages, active agents) and Redis (floor/bid prices)
+---
