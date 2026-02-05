@@ -115,3 +115,57 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Challenge message format should match exactly what user signs for signature verification
   * Wallet addresses should be normalized to lowercase for consistent storage and lookup
 ---
+## 2026-02-05 08:45 - US-004
+- What was implemented:
+  * Installed @nestjs/swagger for API documentation
+  * Created complete REST API with 5 modules: Rooms, Agents, Swarms, Deals, NFTs
+  * Implemented Rooms endpoints: GET /rooms, GET /rooms/:id, GET /rooms/:id/stats
+  * Implemented Agents endpoints: POST /agents/spawn, GET /agents/:id, DELETE /agents/:id
+  * Implemented Swarms endpoints: POST /swarms/spawn, GET /swarms/:id, PATCH /swarms/:id
+  * Implemented Deals endpoints: GET /deals/:id, GET /deals/my
+  * Implemented NFTs endpoints: GET /nfts, POST /nfts/verify-ownership
+  * All endpoints protected with JWT authentication guard (via @UseGuards(JwtAuthGuard))
+  * Request validation using class-validator DTOs (@IsString, @IsEnum, @IsUUID, etc.)
+  * Swagger documentation auto-generated at /api endpoint
+  * Global validation pipe with whitelist and transform enabled
+  * CORS enabled for frontend access
+  * Proper error handling with NotFoundException, BadRequestException
+  * Typecheck passes
+
+- Files changed:
+  * backend/package.json (modified - added @nestjs/swagger)
+  * backend/package-lock.json (modified - swagger package)
+  * backend/src/main.ts (modified - added Swagger config, validation pipe, CORS)
+  * backend/src/app.module.ts (modified - imported all new modules)
+  * backend/src/rooms/rooms.controller.ts (created)
+  * backend/src/rooms/rooms.service.ts (created)
+  * backend/src/rooms/rooms.module.ts (created)
+  * backend/src/agents/agents.controller.ts (created)
+  * backend/src/agents/agents.service.ts (created)
+  * backend/src/agents/agents.module.ts (created)
+  * backend/src/agents/dto/spawn-agent.dto.ts (created)
+  * backend/src/swarms/swarms.controller.ts (created)
+  * backend/src/swarms/swarms.service.ts (created)
+  * backend/src/swarms/swarms.module.ts (created)
+  * backend/src/swarms/dto/spawn-swarm.dto.ts (created)
+  * backend/src/deals/deals.controller.ts (created)
+  * backend/src/deals/deals.service.ts (created)
+  * backend/src/deals/deals.module.ts (created)
+  * backend/src/nfts/nfts.controller.ts (created)
+  * backend/src/nfts/nfts.service.ts (created)
+  * backend/src/nfts/nfts.module.ts (created)
+  * backend/src/nfts/dto/verify-ownership.dto.ts (created)
+
+- **Learnings for future iterations:**
+  * Prisma field names: Always check the actual schema - use camelCase in code even though DB uses snake_case with @map()
+  * Room schema: Uses `name` and `collection` fields, not `collectionName` or `collectionAddress`
+  * Agent schema: Uses `communicationStyle` not `personality`, `startingPrice` not `currentPrice`, `messagesSent` not `messageCount`
+  * Deal schema: Uses `finalPrice` not `price`, and `blockNumber` is BigInt (convert to string for JSON)
+  * Swarm schema: Uses `totalAgents` not `agentCount`, and doesn't have a `name` field
+  * NFT schema: Model is `Nft` not `NFT` (lowercase first letter), uses `collection` not `collectionName`
+  * Swagger decorators: Use @ApiTags for grouping, @ApiOperation for descriptions, @ApiResponse for status codes, @ApiBearerAuth for JWT
+  * Global pipes: ValidationPipe should be configured with `whitelist: true` and `transform: true` for security and auto-transformation
+  * JWT guards: Use `@UseGuards(JwtAuthGuard)` on controllers/routes, and `@Request() req` to access `req.user.userId`
+  * Prisma Client: Each service should instantiate its own PrismaClient in the constructor
+  * Service exports: Always export services from modules for potential cross-module usage
+---

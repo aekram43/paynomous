@@ -76,7 +76,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 2: Core Backend - Week 3-4"
     },
     {
