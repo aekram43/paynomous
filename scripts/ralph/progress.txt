@@ -169,3 +169,36 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Prisma Client: Each service should instantiate its own PrismaClient in the constructor
   * Service exports: Always export services from modules for potential cross-module usage
 ---
+## 2026-02-05 13:30 - US-005
+- What was implemented:
+  * Integrated Socket.io with NestJS using @nestjs/websockets and @nestjs/platform-socket.io
+  * Created WebSocket gateway with JWT authentication (token from handshake auth or authorization header)
+  * Implemented join_room and leave_room event handlers with room membership tracking
+  * Implemented all broadcast events: agent_joined, agent_message, room_stats, deal_locked, deal_verifying, deal_completed, agent_left
+  * Integrated Redis Pub/Sub using @socket.io/redis-adapter with ioredis for multi-instance support
+  * Added message sequencing with timestamps (all events include timestamp: new Date().toISOString())
+  * Implemented connection state management (handleConnection, handleDisconnect with automatic room cleanup)
+  * Room-based broadcasting using Socket.io rooms (users only receive messages from joined rooms)
+  * Added error handling for authentication failures and disconnection
+  * Typecheck passes
+
+- Files changed:
+  * backend/package.json (modified - added @nestjs/websockets, @nestjs/platform-socket.io, ioredis, @socket.io/redis-adapter)
+  * backend/package-lock.json (modified - new WebSocket dependencies)
+  * backend/src/app.module.ts (modified - imported WebsocketModule)
+  * backend/src/websocket/websocket.gateway.ts (created)
+  * backend/src/websocket/websocket.module.ts (created)
+
+- **Learnings for future iterations:**
+  * Socket.io Gateway: Use @WebSocketGateway decorator with CORS configuration for frontend access
+  * JWT Authentication: Extract token from `client.handshake.auth.token` or `client.handshake.headers.authorization`
+  * Redis Adapter: Use @socket.io/redis-adapter with ioredis (not native redis package) for Socket.io multi-instance support
+  * Redis Pub/Sub: Redis adapter automatically handles Pub/Sub for Socket.io rooms, no manual subscription needed
+  * Room Management: Socket.io handles room broadcasting with `this.server.to(roomId).emit(event, data)`
+  * Namespace: Use namespace: '/ws' for WebSocket gateway, or '/' for root namespace
+  * Connection Lifecycle: Implement OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect for proper lifecycle management
+  * Client Tracking: Store authenticated socket data (userId, walletAddress) on the socket object after JWT verification
+  * Broadcasting Methods: Export gateway methods for other services to call (e.g., AgentsService can call gateway.broadcastAgentJoined)
+  * Message Format: All broadcast events should include roomId and timestamp for consistency
+  * Environment Variables: Use REDIS_HOST and REDIS_PORT for Redis connection configuration
+---
