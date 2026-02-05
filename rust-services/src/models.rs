@@ -33,11 +33,27 @@ pub struct ConsensusRequest {
 }
 
 #[derive(Serialize)]
+pub struct VerifierResult {
+    pub verifier_id: String,
+    pub approved: bool,
+    pub checks: VerifierChecks,
+}
+
+#[derive(Serialize)]
+pub struct VerifierChecks {
+    pub nft_ownership: bool,
+    pub buyer_balance: bool,
+    pub signature_validity: bool,
+}
+
+#[derive(Serialize)]
 pub struct ConsensusResponse {
     pub approved: bool,
     pub verifier_count: usize,
     pub approval_count: usize,
     pub threshold: f64,
+    pub verifiers: Vec<VerifierResult>,
+    pub execution_time_ms: u128,
 }
 
 // Escrow Execution
