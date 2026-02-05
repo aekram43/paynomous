@@ -77,3 +77,41 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * All Prisma commands should be run from the directory containing prisma.config.ts (backend/)
   * Prisma Client is generated to node_modules/.prisma/client for easy importing
 ---
+## 2026-02-05 04:50 - US-003
+- What was implemented:
+  * Installed authentication dependencies: ethers@^6.13.0, @nestjs/jwt, @nestjs/passport, passport-jwt, class-validator, class-transformer
+  * Created complete auth module with controller, service, DTOs, JWT strategy, and auth guard
+  * Implemented POST /auth/challenge endpoint - generates unique nonce and challenge message with 5-minute expiration
+  * Implemented POST /auth/verify endpoint - validates wallet signature using ethers.js verifyMessage()
+  * Implemented POST /auth/refresh endpoint - refreshes access tokens using valid refresh token
+  * Implemented GET /auth/me endpoint - returns authenticated user data (protected with JWT guard)
+  * JWT tokens issued with 24-hour expiration for access tokens, 7-day for refresh tokens
+  * In-memory nonce store with expiration tracking to prevent replay attacks
+  * User records automatically created/updated on successful authentication
+  * JWT payload includes userId and walletAddress
+  * Typecheck passes
+
+- Files changed:
+  * backend/package.json (modified - added auth dependencies)
+  * backend/package-lock.json (modified - auth packages)
+  * backend/src/app.module.ts (modified - imported AuthModule)
+  * backend/src/auth/auth.controller.ts (created)
+  * backend/src/auth/auth.service.ts (created)
+  * backend/src/auth/auth.module.ts (created)
+  * backend/src/auth/jwt.strategy.ts (created)
+  * backend/src/auth/jwt-auth.guard.ts (created)
+  * backend/src/auth/dto/challenge.dto.ts (created)
+  * backend/src/auth/dto/verify.dto.ts (created)
+  * backend/src/auth/dto/refresh.dto.ts (created)
+
+- **Learnings for future iterations:**
+  * Prisma Client uses camelCase field names (walletAddress, createdAt, updatedAt) even though database columns are snake_case
+  * Always use Prisma's generated TypeScript types - they prevent field name mismatches
+  * ethers.js v6 uses named imports: `import { verifyMessage } from 'ethers'`
+  * Nonce store should be moved to Redis for multi-instance deployments (currently in-memory)
+  * JWT secret is configured in both JwtModule.register() and JwtStrategy constructor
+  * @UseGuards(JwtAuthGuard) protects endpoints and injects user data into request object
+  * NestJS PassportStrategy automatically extracts JWT from Authorization Bearer header
+  * Challenge message format should match exactly what user signs for signature verification
+  * Wallet addresses should be normalized to lowercase for consistent storage and lookup
+---
