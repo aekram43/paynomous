@@ -202,3 +202,46 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Message Format: All broadcast events should include roomId and timestamp for consistency
   * Environment Variables: Use REDIS_HOST and REDIS_PORT for Redis connection configuration
 ---
+## 2026-02-05 13:45 - US-006
+- What was implemented:
+  * Created Redis module with RedisService using ioredis for all Redis operations
+  * Connected Redis client with proper error handling and retry strategy
+  * Implemented Pub/Sub clients (separate connections for pub/sub operations)
+  * Implemented NFT metadata caching with 1 hour TTL (cacheNftMetadata/getNftMetadata)
+  * Implemented user session caching with 24 hour TTL (cacheUserSession/getUserSession/deleteUserSession)
+  * Implemented live stats using sorted sets for floor prices and bids (room:{roomId}:floor and room:{roomId}:bids)
+  * Implemented room stats caching with 5 second TTL (cacheRoomStats/getRoomStats)
+  * Implemented rate limiting counters with time windows (incrementRateLimit/checkRateLimit)
+  * Implemented WebSocket session tracking (trackWebSocketSession/getWebSocketSession/deleteWebSocketSession)
+  * Integrated Redis caching into existing services: NftsService, RoomsService, AuthService, WebsocketGateway
+  * Updated AuthService to use Redis for nonce storage (replacing in-memory Map)
+  * Updated RoomsService to cache stats with 5 second TTL (check cache before DB query)
+  * Updated NftsService to cache metadata after fetching from DB
+  * Updated WebsocketGateway to track sessions in Redis on connect/disconnect
+  * Typecheck passes
+
+- Files changed:
+  * backend/src/redis/redis.service.ts (created)
+  * backend/src/redis/redis.module.ts (created)
+  * backend/src/app.module.ts (modified - imported RedisModule)
+  * backend/src/auth/auth.service.ts (modified - use Redis for nonces and sessions)
+  * backend/src/nfts/nfts.service.ts (modified - cache NFT metadata)
+  * backend/src/rooms/rooms.service.ts (modified - cache room stats)
+  * backend/src/websocket/websocket.gateway.ts (modified - track WebSocket sessions)
+
+- **Learnings for future iterations:**
+  * Redis Module: Use @Global() decorator to make RedisService available throughout the app without importing RedisModule in each module
+  * ioredis: Use ioredis package (not native redis) for NestJS Redis integration - better TypeScript support
+  * Redis Connections: Separate Redis clients needed for Pub/Sub vs regular operations (pubClient, subClient, client)
+  * Retry Strategy: Implement exponential backoff with `retryStrategy: (times) => Math.min(times * 50, 2000)`
+  * Error Handling: Redis operations should log errors but not throw - fail gracefully to prevent app crashes
+  * TTL Strategy: Use setex(key, ttl, value) for keys with expiration, set(key, value) for permanent keys
+  * Sorted Sets: Use zadd for adding scores, zrange for ascending order, zrevrange for descending order, WITHSCORES to get values with scores
+  * Rate Limiting: Use pipeline for atomic operations (incr + expire) to prevent race conditions
+  * Cache Invalidation: Explicitly delete cache keys when data changes (e.g., after user logout, deal completion)
+  * Module Lifecycle: Implement OnModuleInit and OnModuleDestroy for connection management
+  * Nonce Storage: Redis is better than in-memory Map for multi-instance deployments (survives restarts, shared across instances)
+  * Cache Pattern: Always check cache first, fetch from DB on miss, then update cache for next request
+  * WebSocket Sessions: Track connection metadata in Redis for monitoring and debugging
+  * Pub/Sub Channels: Use consistent naming pattern like `room:{roomId}` for room-specific channels
+---
