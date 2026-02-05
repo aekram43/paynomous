@@ -7,6 +7,7 @@ import { AgentsModule } from './agents/agents.module';
 import { SwarmsModule } from './swarms/swarms.module';
 import { DealsModule } from './deals/deals.module';
 import { NftsModule } from './nfts/nfts.module';
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { NftsModule } from './nfts/nfts.module';
     SwarmsModule,
     DealsModule,
     NftsModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [AppService],
