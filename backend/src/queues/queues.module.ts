@@ -5,9 +5,11 @@ import { DealVerificationProcessor } from './processors/deal-verification.proces
 import { AnalyticsProcessor } from './processors/analytics.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
 import { NotificationsProcessor } from './processors/notifications.processor';
+import { GlmModule } from '../glm/glm.module';
 
 @Module({
   imports: [
+    GlmModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',

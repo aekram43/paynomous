@@ -1,41 +1,22 @@
 # Ralph Agent Instructions
 
-You are an autonomous coding agent working on a software project. 
+You are an autonomous coding agent working on a software project.
 
 ## References
-read the product requirement specification here `/specs/Agentrooms-PRD.md`
+Product requirement specificatiion `/specs/Agentrooms-PRD.md`
 
 ## Your Task
-
-**CRITICAL: Check for previous iteration work first!**
-
-Before starting new work:
-1. Run `git status` and `git diff` to check for uncommitted changes from previous iterations
-2. If uncommitted work exists, CONTINUE that work - don't start over
-3. If no uncommitted work, proceed with normal flow
-
-**Normal flow:**
 
 1. Read the PRD at `prd.json` (in the same directory as this file)
 2. Read the progress log at `progress.txt` (check Codebase Patterns section first)
 3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
 4. Pick the **highest priority** user story where `passes: false`
-5. **Update the state file** `.iteration-state.json` with the current story ID you're working on:
-   ```bash
-   jq '.current_story = "US-XXX"' .iteration-state.json > .iteration-state.json.tmp && mv .iteration-state.json.tmp .iteration-state.json
-   ```
-6. Implement that single user story (complete it fully, don't leave it partially done)
-7. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-8. Update CLAUDE.md files if you discover reusable patterns (see below)
-9. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-10. Update the PRD to set `passes: true` for the completed story
-11. Append your progress to `progress.txt`
-12. **Update the state file** to mark story as complete:
-    ```bash
-    jq '.current_story = "completed"' .iteration-state.json > .iteration-state.json.tmp && mv .iteration-state.json.tmp .iteration-state.json
-    ```
-
-**Key: Focus on COMPLETING the user story in this iteration, not just starting it.**
+5. Implement that single user story
+6. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+7. Update CLAUDE.md files if you discover reusable patterns (see below)
+8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
+9. Update the PRD to set `passes: true` for the completed story
+10. Append your progress to `progress.txt`
 
 ## Progress Report Format
 
