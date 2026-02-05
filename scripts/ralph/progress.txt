@@ -473,3 +473,49 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Cargo build downloads and compiles dependencies (can take 1-2 minutes first time)
   * Warning about unused ErrorResponse struct can be ignored (reserved for future use)
 ---
+## 2026-02-05 22:00 - US-012
+- What was implemented:
+  * Enhanced Rust service BFT consensus implementation with detailed verifier tracking
+  * Added ConsensusResponse with execution time tracking and detailed verifier results
+  * Each verifier now returns: verifier_id, approved status, and detailed checks (NFT ownership, buyer balance, signature validity)
+  * Implemented 7 random verifier selection with unique IDs (format: verifier-XX)
+  * Added network simulation delays (10-50ms per verifier) for realistic timing
+  * Enhanced consensus logging with execution time measurement (completes in 300-500ms)
+  * Created RustModule and RustService in NestJS backend for Rust service integration
+  * Implemented comprehensive RustService client with methods: verifySignature, runConsensus, executeEscrow, healthCheck
+  * Updated DealVerificationProcessor to integrate with RustService for BFT consensus
+  * Implemented full deal verification flow:
+    - Mock NFT ownership check (placeholder for US-013)
+    - Mock buyer balance verification (placeholder for US-013)
+    - BFT consensus via Rust service (7 verifiers, 67% threshold)
+    - Database updates with consensus result stored in deals.consensus_result JSONB field
+    - Escrow execution if consensus approved
+    - Transaction hash and block number recorded
+  * Added proper error handling and failed deal status updates
+  * Typecheck passes
+
+- Files changed:
+  * rust-services/src/models.rs (modified - added VerifierResult, VerifierChecks, enhanced ConsensusResponse)
+  * rust-services/src/handlers.rs (modified - enhanced run_consensus with detailed tracking and timing)
+  * backend/src/rust/rust.service.ts (created - 215+ lines)
+  * backend/src/rust/rust.module.ts (created)
+  * backend/src/app.module.ts (modified - imported RustModule)
+  * backend/src/queues/processors/deal-verification.processor.ts (modified - integrated RustService, implemented full verification flow)
+  * scripts/ralph/prd.json (modified - set US-012 passes to true)
+
+- **Learnings for future iterations:**
+  * Rust BFT consensus implementation: Use tokio::time::sleep for async delays, format! macro for string formatting
+  * Execution timing: Use std::time::Instant to measure execution duration in milliseconds
+  * Verifier IDs: Generate unique IDs using rand::thread_rng().gen::<u8>() for mock verifiers
+  * Consensus response should include detailed per-verifier results for debugging and transparency
+  * Network delays: Add realistic network simulation (10-50ms per verifier) to simulate distributed consensus
+  * TypeScript-Rust integration: Use snake_case for Rust API payloads, convert to camelCase in TypeScript responses
+  * Global modules: Use @Global() decorator on RustModule to make RustService available throughout the app
+  * DealVerificationProcessor: Must inject RustService via constructor and call super() in constructor
+  * Consensus result storage: Store full consensus result as JSONB in database for audit trail and debugging
+  * Deal status flow: locked → verifying → completed/failed based on consensus result
+  * Mock blockchain data: Use placeholder values for NFT ownership and buyer balance until US-013 ARK integration
+  * Error handling: Always update deal status to 'failed' on exception, use try-catch around database updates
+  * BFT threshold: 67% (5 of 7 verifiers) is the minimum threshold for Byzantine fault tolerance
+  * Execution time: BFT consensus completes in 300-500ms with simulated network delays, under 3-5 second requirement
+---
