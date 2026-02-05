@@ -1,8 +1,10 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger, Inject } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { RustService, ConsensusResponse } from '../../rust/rust.service';
 import { PrismaClient } from '@prisma/client';
+import { WebsocketGateway } from '../../websocket/websocket.gateway';
+import { RedisService } from '../../redis/redis.service';
 
 export interface DealVerificationJob {
   type: 'verify_deal';
@@ -30,7 +32,12 @@ export class DealVerificationProcessor extends WorkerHost {
   private readonly logger = new Logger(DealVerificationProcessor.name);
   private readonly prisma = new PrismaClient();
 
-  constructor(@Inject(RustService) private readonly rustService: RustService) {
+  constructor(
+    @Inject(RustService) private readonly rustService: RustService,
+    @Inject(forwardRef(() => WebsocketGateway))
+    private readonly websocketGateway: WebsocketGateway,
+    private readonly redisService: RedisService,
+  ) {
     super();
   }
 
@@ -40,32 +47,48 @@ export class DealVerificationProcessor extends WorkerHost {
     this.logger.log(`Processing deal verification for deal ${dealId}`);
 
     try {
-      // Fetch NFT details from database to get collection and token_id
-      const nft = await this.prisma.nft.findUnique({
-        where: { id: nftId },
+      // Fetch deal with all relations to get roomId
+      const deal = await this.prisma.deal.findUnique({
+        where: { id: dealId },
+        include: {
+          buyerAgent: true,
+          sellerAgent: true,
+          nft: true,
+          room: true,
+        },
       });
 
-      if (!nft) {
-        throw new Error(`NFT not found: ${nftId}`);
+      if (!deal) {
+        throw new Error(`Deal not found: ${dealId}`);
       }
+
+      const roomId = deal.roomId;
+
+      // Broadcast deal_verifying event with initial status
+      this.websocketGateway.broadcastDealVerifying(roomId, {
+        dealId,
+        progress: 10,
+        stage: 'ownership',
+        message: 'Verifying NFT ownership...',
+      });
 
       // Step 1: Query NFT ownership on ARK Network via Rust service
       this.logger.log(
-        `Verifying NFT ownership: ${nft.collection} #${nft.tokenId} owned by ${sellerAddress}`,
+        `Verifying NFT ownership: ${deal.nft.collection} #${deal.nft.tokenId} owned by ${sellerAddress}`,
       );
       const ownershipResult = await this.rustService.queryNftOwnership(
-        nft.collection,
-        nft.tokenId,
+        deal.nft.collection,
+        deal.nft.tokenId,
         sellerAddress,
       );
       const nftOwnership = ownershipResult.owned;
       this.logger.debug(
-        `NFT ownership check: ${nftOwnership} (${nft.collection} #${nft.tokenId})`,
+        `NFT ownership check: ${nftOwnership} (${deal.nft.collection} #${deal.nft.tokenId})`,
       );
 
       if (!nftOwnership) {
         this.logger.warn(
-          `NFT ownership verification failed: seller ${sellerAddress} does not own ${nft.collection} #${nft.tokenId}`,
+          `NFT ownership verification failed: seller ${sellerAddress} does not own ${deal.nft.collection} #${deal.nft.tokenId}`,
         );
         await this.prisma.deal.update({
           where: { id: dealId },
@@ -79,6 +102,14 @@ export class DealVerificationProcessor extends WorkerHost {
           error: 'NFT ownership verification failed',
         };
       }
+
+      // Broadcast progress: ownership verified
+      this.websocketGateway.broadcastDealVerifying(roomId, {
+        dealId,
+        progress: 40,
+        stage: 'balance',
+        message: 'Verifying buyer balance...',
+      });
 
       // Step 2: Query USDC balance on ARK Network via Rust service
       this.logger.log(`Verifying buyer balance for address: ${buyerAddress}`);
@@ -112,6 +143,14 @@ export class DealVerificationProcessor extends WorkerHost {
         'mock_seller_signature_hex',
       ];
 
+      // Broadcast progress: balance verified, running consensus
+      this.websocketGateway.broadcastDealVerifying(roomId, {
+        dealId,
+        progress: 60,
+        stage: 'consensus',
+        message: 'Running BFT consensus...',
+      });
+
       // Step 4: Run BFT consensus via Rust service
       this.logger.log(`Running BFT consensus for deal ${dealId}`);
       const consensusResult = await this.rustService.runConsensus(
@@ -144,7 +183,15 @@ export class DealVerificationProcessor extends WorkerHost {
         };
       }
 
-      // Step 6: Execute escrow if consensus approved (mock for now, real implementation in US-013)
+      // Broadcast progress: consensus approved, executing transaction
+      this.websocketGateway.broadcastDealVerifying(roomId, {
+        dealId,
+        progress: 80,
+        stage: 'execution',
+        message: 'Executing blockchain transaction...',
+      });
+
+      // Step 6: Execute escrow if consensus approved
       this.logger.log(`Consensus approved, executing escrow for deal ${dealId}`);
       const escrowResult = await this.rustService.executeEscrow(
         dealId,
@@ -154,7 +201,7 @@ export class DealVerificationProcessor extends WorkerHost {
         price,
       );
 
-      // Step 7: Update deal with transaction details
+      // Step 7: Update deal with transaction details and set agents to completed
       await this.prisma.deal.update({
         where: { id: dealId },
         data: {
@@ -165,9 +212,61 @@ export class DealVerificationProcessor extends WorkerHost {
         },
       });
 
+      // Update agents to completed status
+      await this.prisma.agent.updateMany({
+        where: {
+          id: { in: [deal.buyerAgentId, deal.sellerAgentId] },
+        },
+        data: {
+          status: 'completed',
+        },
+      });
+
       this.logger.log(
         `Deal verification completed successfully for deal ${dealId}: tx_hash=${escrowResult.txHash}`,
       );
+
+      // Broadcast deal_completed event with full details
+      this.websocketGateway.broadcastDealCompleted(roomId, {
+        id: dealId,
+        buyer: {
+          agentId: deal.buyerAgentId,
+          agentName: deal.buyerAgent.name,
+          wallet: buyerAddress,
+        },
+        seller: {
+          agentId: deal.sellerAgentId,
+          agentName: deal.sellerAgent.name,
+          wallet: sellerAddress,
+        },
+        nft: {
+          id: deal.nft.id,
+          collection: deal.nft.collection,
+          tokenId: deal.nft.tokenId,
+          name: deal.nft.name,
+          imageUrl: deal.nft.imageUrl,
+        },
+        price,
+        txHash: escrowResult.txHash,
+        blockNumber: escrowResult.blockNumber,
+      });
+
+      // Remove agents from room Redis tracking
+      await this.redisService.removeAgentFromFloor(roomId, deal.sellerAgentId);
+      await this.redisService.removeAgentFromBids(roomId, deal.buyerAgentId);
+
+      // Broadcast that agents have left the room
+      this.websocketGateway.broadcastAgentLeft(roomId, {
+        agentId: deal.buyerAgentId,
+        name: deal.buyerAgent.name,
+        reason: 'bought_nft',
+      });
+
+      this.websocketGateway.broadcastAgentLeft(roomId, {
+        agentId: deal.sellerAgentId,
+        name: deal.sellerAgent.name,
+        reason: 'sold_nft',
+      });
 
       return {
         success: true,
