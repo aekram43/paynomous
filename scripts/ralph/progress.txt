@@ -355,3 +355,38 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Response processing should extract structured data (price, intent, sentiment) for database storage
   * GLM service should be globally available since multiple modules may need it (agents, swarms, etc.)
 ---
+## 2026-02-05 20:55 - US-009
+- What was implemented:
+  * Verified GLM service already has comprehensive personality and strategy system from US-008
+  * Created comprehensive test suite with 29 test cases for personality system validation
+  * All 4 communication styles tested: formal, casual, professional, aggressive
+  * All 5 strategies tested: competitive, patient, aggressive, conservative, sniper
+  * Verified room context adjustments (floor price, top bid, competitor counts)
+  * Verified price mandate enforcement (min/max prices in prompts)
+  * Verified emotional expression patterns unique to each personality
+  * Verified intent detection (accept, reject, counter, offer, comment)
+  * Verified sentiment analysis (positive, negative, neutral)
+  * Verified price extraction from natural language responses
+  * Updated package.json with proper Jest test scripts
+  * All tests pass (29/29 passed)
+  * Typecheck passes
+
+- Files changed:
+  * backend/src/glm/glm.service.spec.ts (created - 420+ lines of tests)
+  * backend/package.json (modified - added test, test:watch, test:cov scripts)
+  * scripts/ralph/prd.json (modified - set US-009 passes to true)
+
+- **Learnings for future iterations:**
+  * GLM service personality system was already fully implemented in US-008 - US-009 primarily validated it with tests
+  * Jest test suite structure: Use describe blocks for grouping related tests by feature area
+  * Testing private methods: Cast service as 'any' to access private methods in tests: `(service as any).privateMethod()`
+  * Communication styles create distinct tones: formal (polite, proper), casual (friendly, emojis), professional (direct, factual), aggressive (bold, pushy)
+  * Strategy instructions guide agent behavior: competitive (reactive), patient (steady), aggressive (fast), conservative (cautious), sniper (quiet then decisive)
+  * Room context integration is critical: agents need floor price, top bid, competitor counts, and recent messages to make intelligent decisions
+  * Price mandate enforcement prevents agents from violating user constraints (sellers won't go below min, buyers won't exceed max)
+  * Intent detection uses keyword matching: "deal", "agreed" = accept; "no", "too low" = reject; price + "counter" = counter
+  * Sentiment analysis uses word counting: more positive words = positive, more negative words = negative
+  * Test coverage validates distinct behavior patterns between personalities as required by acceptance criteria
+  * Jest configuration already existed (jest.config.js) but test script in package.json needed updating
+  * @nestjs/testing provides Test.createTestingModule for dependency injection in unit tests
+---

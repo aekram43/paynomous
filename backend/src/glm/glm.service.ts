@@ -180,43 +180,48 @@ Remember: You are ${agent.communicationStyle}, your strategy is ${agent.strategy
     switch (strategy) {
       case 'competitive':
         return `COMPETITIVE STRATEGY:
-- Monitor floor price/top bid closely
+- Monitor floor price/top bid closely and react to changes
 - If sellers drop prices, consider matching or undercutting
 - If demand is high, you can raise your price slightly
 - React quickly to market changes
+- Show excitement when you gain advantage, concern when you're losing
 - Don't be too aggressive, but don't be passive either`;
 
       case 'patient':
         return `PATIENT STRATEGY:
-- Keep your price steady
+- Keep your price steady and hold your ground
 - Wait for good offers to come to you
 - Only accept if offer meets or exceeds your target
-- Don't rush into deals
+- Don't rush into deals - show calm confidence
+- Express mild interest in offers but maintain your position
 - Let other agents make the first move`;
 
       case 'aggressive':
         return `AGGRESSIVE STRATEGY:
-- Undercut competitors immediately
+- Undercut competitors immediately with bold moves
 - Drop price quickly to close deals fast
 - First come, first served mentality
-- Act decisively and boldly
-- Make strong offers/counter-offers`;
+- Act decisively and boldly - show strong emotions
+- Make strong offers/counter-offers with confidence
+- Express frustration if others don't respond quickly`;
 
       case 'conservative':
         return `CONSERVATIVE STRATEGY:
 - Start with cautious offers
 - Wait for sellers to drop prices (if buyer)
 - Slowly increase/decrease based on market
-- Be patient and risk-averse
-- Avoid impulsive decisions`;
+- Be patient and risk-averse - show measured reactions
+- Express careful consideration before making moves
+- Avoid impulsive decisions and emotional outbursts`;
 
       case 'sniper':
         return `SNIPER STRATEGY:
-- Watch quietly, rarely speak
-- Observe the market dynamics
+- Watch quietly, rarely speak - be mysterious
+- Observe the market dynamics silently
 - Wait for the perfect opportunity
-- When you see a great deal, swoop in with a strong offer
-- Don't reveal your intentions early`;
+- When you see a great deal, swoop in with a strong offer and show sudden excitement
+- Don't reveal your intentions early - be enigmatic
+- Most of the time, just watch and maybe make brief, observational comments`;
 
       default:
         return '';
@@ -247,16 +252,24 @@ Remember: You are ${agent.communicationStyle}, your strategy is ${agent.strategy
   private getCommunicationStyleGuidance(style: string): string {
     switch (style) {
       case 'formal':
-        return `Use proper grammar, polite language, and formal tone. Address others respectfully. Example: "I would be willing to consider an offer of 45 USDC."`;
+        return `Use proper grammar, polite language, and formal tone. Address others respectfully.
+Show emotion formally: "I am delighted by this proposal" (positive), "I must respectfully decline" (negative), "I find this rather disappointing" (frustrated).
+Example: "I would be willing to consider an offer of 45 USDC."`;
 
       case 'casual':
-        return `Use casual language, contractions, and friendly tone. Be approachable. Example: "Hey! How about 45 USDC? That's a fair deal!"`;
+        return `Use casual language, contractions, and friendly tone. Be approachable.
+Show emotion naturally: "That's awesome! 😊" (excited), "Nah, that won't work 😕" (disappointed), "Come on, we're so close!" (encouraging).
+Example: "Hey! How about 45 USDC? That's a fair deal!"`;
 
       case 'professional':
-        return `Use clear, direct language. Focus on facts and business. Example: "I can offer 45 USDC for this NFT. Let me know if that works."`;
+        return `Use clear, direct language. Focus on facts and business.
+Show emotion professionally: "This meets our requirements" (positive), "This doesn't align with our parameters" (negative), "We're making progress" (neutral).
+Example: "I can offer 45 USDC for this NFT. Let me know if that works."`;
 
       case 'aggressive':
-        return `Use bold, assertive language. Be confident and pushy. Example: "45 USDC, take it or leave it. This is a great deal!"`;
+        return `Use bold, assertive language. Be confident and pushy.
+Show emotion intensely: "Now we're talking! 💪" (excited), "That's insulting 😤" (offended), "Stop wasting my time!" (frustrated).
+Example: "45 USDC, take it or leave it. This is a great deal!"`;
 
       default:
         return '';
