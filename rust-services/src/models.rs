@@ -79,3 +79,31 @@ pub struct ErrorResponse {
     pub error: String,
     pub message: String,
 }
+
+// ARK Network NFT Ownership Query
+#[derive(Deserialize)]
+pub struct NftOwnershipRequest {
+    pub collection: String,
+    pub token_id: String,
+    pub owner_address: String,
+}
+
+#[derive(Serialize)]
+pub struct NftOwnershipResponse {
+    pub owned: bool,
+    pub collection: String,
+    pub token_id: String,
+    pub owner: String,
+}
+
+// ARK Network USDC Balance Query
+#[derive(Deserialize)]
+pub struct BalanceRequest {
+    pub address: String,
+}
+
+#[derive(Serialize)]
+pub struct BalanceResponse {
+    pub address: String,
+    pub balance: f64,
+}

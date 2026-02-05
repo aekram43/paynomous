@@ -3,6 +3,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 
+use crate::ark_client::ArkClient;
 use crate::models::*;
 
 /// Health check endpoint
@@ -177,7 +178,83 @@ pub async fn run_consensus(payload: web::Json<ConsensusRequest>) -> impl Respond
     })
 }
 
-/// Execute escrow transaction (mock blockchain)
+/// Query NFT ownership on ARK Network
+pub async fn query_nft_ownership(payload: web::Json<NftOwnershipRequest>) -> impl Responder {
+    log::info!(
+        "Querying NFT ownership: collection={}, token_id={}, owner={}",
+        payload.collection,
+        payload.token_id,
+        payload.owner_address
+    );
+
+    match ArkClient::new() {
+        Ok(client) => {
+            match client
+                .query_nft_ownership(&payload.collection, &payload.token_id, &payload.owner_address)
+                .await
+            {
+                Ok(owned) => {
+                    log::info!("NFT ownership result: {}", owned);
+                    HttpResponse::Ok().json(NftOwnershipResponse {
+                        owned,
+                        collection: payload.collection.clone(),
+                        token_id: payload.token_id.clone(),
+                        owner: payload.owner_address.clone(),
+                    })
+                }
+                Err(e) => {
+                    log::error!("Failed to query NFT ownership: {}", e);
+                    HttpResponse::InternalServerError().json(ErrorResponse {
+                        error: "NFT_QUERY_FAILED".to_string(),
+                        message: format!("Failed to query NFT ownership: {}", e),
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to create ARK client: {}", e);
+            HttpResponse::InternalServerError().json(ErrorResponse {
+                error: "ARK_CLIENT_ERROR".to_string(),
+                message: format!("Failed to initialize ARK client: {}", e),
+            })
+        }
+    }
+}
+
+/// Query USDC balance on ARK Network
+pub async fn query_usdc_balance(payload: web::Json<BalanceRequest>) -> impl Responder {
+    log::info!("Querying USDC balance for address: {}", payload.address);
+
+    match ArkClient::new() {
+        Ok(client) => {
+            match client.query_usdc_balance(&payload.address).await {
+                Ok(balance) => {
+                    log::info!("USDC balance: {} USDC", balance);
+                    HttpResponse::Ok().json(BalanceResponse {
+                        address: payload.address.clone(),
+                        balance,
+                    })
+                }
+                Err(e) => {
+                    log::error!("Failed to query USDC balance: {}", e);
+                    HttpResponse::InternalServerError().json(ErrorResponse {
+                        error: "BALANCE_QUERY_FAILED".to_string(),
+                        message: format!("Failed to query USDC balance: {}", e),
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to create ARK client: {}", e);
+            HttpResponse::InternalServerError().json(ErrorResponse {
+                error: "ARK_CLIENT_ERROR".to_string(),
+                message: format!("Failed to initialize ARK client: {}", e),
+            })
+        }
+    }
+}
+
+/// Execute escrow transaction on ARK Network
 pub async fn execute_escrow(payload: web::Json<EscrowRequest>) -> impl Responder {
     log::info!(
         "Executing escrow for deal: {} (NFT: {} from {} to {} for {} USDC)",
@@ -188,42 +265,48 @@ pub async fn execute_escrow(payload: web::Json<EscrowRequest>) -> impl Responder
         payload.price
     );
 
-    // Simulate blockchain transaction
-    // In production, this would:
-    // 1. Connect to ARK Network
-    // 2. Prepare escrow transaction
-    // 3. Sign with private key
-    // 4. Submit to blockchain
-    // 5. Wait for confirmation
+    match ArkClient::new() {
+        Ok(client) => {
+            // Execute escrow transaction with proper error handling
+            match client
+                .execute_escrow_transaction(
+                    &payload.buyer_address,
+                    &payload.seller_address,
+                    &payload.nft_id, // Using nft_id as collection for now
+                    "1", // Token ID placeholder - in production would parse from nft_id
+                    payload.price,
+                )
+                .await
+            {
+                Ok(receipt) => {
+                    log::info!(
+                        "Escrow transaction successful: tx_hash={}, block={}, confirmations={}",
+                        receipt.tx_hash,
+                        receipt.block_number,
+                        receipt.confirmations
+                    );
 
-    // Generate mock transaction hash (SHA256 of deal details)
-    let tx_data = format!(
-        "{}:{}:{}:{}:{}",
-        payload.deal_id,
-        payload.buyer_address,
-        payload.seller_address,
-        payload.nft_id,
-        payload.price
-    );
-
-    let mut hasher = Sha256::new();
-    hasher.update(tx_data.as_bytes());
-    let hash_result = hasher.finalize();
-    let tx_hash = format!("0x{}", hex::encode(hash_result));
-
-    // Generate mock block number
-    let mut rng = rand::thread_rng();
-    let block_number: u64 = rng.gen_range(1000000..2000000);
-
-    log::info!(
-        "Escrow transaction successful: tx_hash={}, block={}",
-        tx_hash,
-        block_number
-    );
-
-    HttpResponse::Ok().json(EscrowResponse {
-        success: true,
-        tx_hash,
-        block_number,
-    })
+                    HttpResponse::Ok().json(EscrowResponse {
+                        success: receipt.status == "success",
+                        tx_hash: receipt.tx_hash,
+                        block_number: receipt.block_number,
+                    })
+                }
+                Err(e) => {
+                    log::error!("Escrow transaction failed: {}", e);
+                    HttpResponse::InternalServerError().json(ErrorResponse {
+                        error: "ESCROW_FAILED".to_string(),
+                        message: format!("Escrow transaction failed: {}", e),
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to create ARK client: {}", e);
+            HttpResponse::InternalServerError().json(ErrorResponse {
+                error: "ARK_CLIENT_ERROR".to_string(),
+                message: format!("Failed to initialize ARK client: {}", e),
+            })
+        }
+    }
 }

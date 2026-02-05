@@ -1,10 +1,14 @@
 use actix_web::{web, App, HttpServer};
 use std::io;
 
+mod ark_client;
 mod handlers;
 mod models;
 
-use handlers::{health_check, verify_signature, run_consensus, execute_escrow};
+use handlers::{
+    execute_escrow, health_check, query_nft_ownership, query_usdc_balance, run_consensus,
+    verify_signature,
+};
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -18,6 +22,8 @@ async fn main() -> io::Result<()> {
             .route("/verify-signature", web::post().to(verify_signature))
             .route("/run-consensus", web::post().to(run_consensus))
             .route("/execute-escrow", web::post().to(execute_escrow))
+            .route("/query-nft-ownership", web::post().to(query_nft_ownership))
+            .route("/query-usdc-balance", web::post().to(query_usdc_balance))
     })
     .bind("0.0.0.0:8080")?
     .run()

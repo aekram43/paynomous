@@ -55,6 +55,28 @@ export interface EscrowResponse {
   blockNumber: number;
 }
 
+export interface NftOwnershipRequest {
+  collection: string;
+  tokenId: string;
+  ownerAddress: string;
+}
+
+export interface NftOwnershipResponse {
+  owned: boolean;
+  collection: string;
+  tokenId: string;
+  owner: string;
+}
+
+export interface BalanceRequest {
+  address: string;
+}
+
+export interface BalanceResponse {
+  address: string;
+  balance: number;
+}
+
 @Injectable()
 export class RustService {
   private readonly logger = new Logger(RustService.name);
@@ -198,6 +220,70 @@ export class RustService {
         error.stack,
       );
       throw new Error(`Rust service escrow execution failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Query NFT ownership on ARK Network
+   */
+  async queryNftOwnership(
+    collection: string,
+    tokenId: string,
+    ownerAddress: string,
+  ): Promise<NftOwnershipResponse> {
+    try {
+      this.logger.debug(
+        `Querying NFT ownership: collection=${collection}, tokenId=${tokenId}, owner=${ownerAddress}`,
+      );
+
+      const response = await this.client.post<NftOwnershipResponse>(
+        '/query-nft-ownership',
+        {
+          collection,
+          token_id: tokenId,
+          owner_address: ownerAddress,
+        },
+      );
+
+      this.logger.debug(
+        `NFT ownership result: ${response.data.owned} (${collection} #${tokenId})`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to query NFT ownership: ${error.message}`,
+        error.stack,
+      );
+      throw new Error(`Rust service NFT ownership query failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Query USDC balance on ARK Network
+   */
+  async queryUsdcBalance(address: string): Promise<BalanceResponse> {
+    try {
+      this.logger.debug(`Querying USDC balance for address: ${address}`);
+
+      const response = await this.client.post<BalanceResponse>(
+        '/query-usdc-balance',
+        {
+          address,
+        },
+      );
+
+      this.logger.debug(
+        `USDC balance result: ${response.data.balance} USDC for ${address}`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to query USDC balance: ${error.message}`,
+        error.stack,
+      );
+      throw new Error(`Rust service balance query failed: ${error.message}`);
     }
   }
 

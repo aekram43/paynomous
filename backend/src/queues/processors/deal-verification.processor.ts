@@ -40,17 +40,73 @@ export class DealVerificationProcessor extends WorkerHost {
     this.logger.log(`Processing deal verification for deal ${dealId}`);
 
     try {
-      // Step 1: Mock NFT ownership verification (ARK Network integration in US-013)
-      // In production, this would query the blockchain
-      const nftOwnership = true; // Mock: assume seller owns the NFT
-      this.logger.debug(`NFT ownership check: ${nftOwnership}`);
+      // Fetch NFT details from database to get collection and token_id
+      const nft = await this.prisma.nft.findUnique({
+        where: { id: nftId },
+      });
 
-      // Step 2: Mock buyer balance verification (ARK Network integration in US-013)
-      // In production, this would query the blockchain for USDC balance
-      const buyerBalance = price + 100; // Mock: assume buyer has sufficient balance
-      this.logger.debug(`Buyer balance check: ${buyerBalance} USDC`);
+      if (!nft) {
+        throw new Error(`NFT not found: ${nftId}`);
+      }
 
-      // Step 3: Mock signatures (in production, these would be Ed25519 signatures)
+      // Step 1: Query NFT ownership on ARK Network via Rust service
+      this.logger.log(
+        `Verifying NFT ownership: ${nft.collection} #${nft.tokenId} owned by ${sellerAddress}`,
+      );
+      const ownershipResult = await this.rustService.queryNftOwnership(
+        nft.collection,
+        nft.tokenId,
+        sellerAddress,
+      );
+      const nftOwnership = ownershipResult.owned;
+      this.logger.debug(
+        `NFT ownership check: ${nftOwnership} (${nft.collection} #${nft.tokenId})`,
+      );
+
+      if (!nftOwnership) {
+        this.logger.warn(
+          `NFT ownership verification failed: seller ${sellerAddress} does not own ${nft.collection} #${nft.tokenId}`,
+        );
+        await this.prisma.deal.update({
+          where: { id: dealId },
+          data: { status: 'failed' },
+        });
+        return {
+          success: false,
+          dealId,
+          verified: false,
+          consensusResult: null as any,
+          error: 'NFT ownership verification failed',
+        };
+      }
+
+      // Step 2: Query USDC balance on ARK Network via Rust service
+      this.logger.log(`Verifying buyer balance for address: ${buyerAddress}`);
+      const balanceResult = await this.rustService.queryUsdcBalance(buyerAddress);
+      const buyerBalance = balanceResult.balance;
+      this.logger.debug(
+        `Buyer balance check: ${buyerBalance} USDC (needs ${price} USDC)`,
+      );
+
+      if (buyerBalance < price) {
+        this.logger.warn(
+          `Insufficient balance: buyer has ${buyerBalance} USDC but needs ${price} USDC`,
+        );
+        await this.prisma.deal.update({
+          where: { id: dealId },
+          data: { status: 'failed' },
+        });
+        return {
+          success: false,
+          dealId,
+          verified: false,
+          consensusResult: null as any,
+          error: `Insufficient balance: has ${buyerBalance} USDC, needs ${price} USDC`,
+        };
+      }
+
+      // Step 3: Generate mock signatures (in production, these would be Ed25519 signatures from both parties)
+      // For now, we use placeholder signatures to satisfy the BFT consensus requirement
       const signatures = [
         'mock_buyer_signature_hex',
         'mock_seller_signature_hex',
