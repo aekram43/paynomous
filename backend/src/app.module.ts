@@ -9,10 +9,12 @@ import { SwarmsModule } from './swarms/swarms.module';
 import { DealsModule } from './deals/deals.module';
 import { NftsModule } from './nfts/nfts.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
     RedisModule,
+    QueuesModule,
     AuthModule,
     RoomsModule,
     AgentsModule,
