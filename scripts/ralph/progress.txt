@@ -245,3 +245,44 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * WebSocket Sessions: Track connection metadata in Redis for monitoring and debugging
   * Pub/Sub Channels: Use consistent naming pattern like `room:{roomId}` for room-specific channels
 ---
+## 2026-02-05 13:40 - US-007
+- What was implemented:
+  * Integrated BullMQ with NestJS using @nestjs/bullmq package
+  * Created QueuesModule with Redis connection configuration (host, port from environment)
+  * Implemented five job queues: glm-requests, deal-verification, analytics, cleanup, notifications
+  * Created five processor workers with @Processor decorators extending WorkerHost
+  * GlmProcessor: Handles GLM API requests with 3 retries, exponential backoff, concurrency 5
+  * DealVerificationProcessor: Processes deal verification with 2 retries, concurrency 3
+  * AnalyticsProcessor: Calculates room stats and agent performance, concurrency 2
+  * CleanupProcessor: Handles old message cleanup and deal archival, concurrency 1
+  * NotificationsProcessor: Sends email, push, and webhook notifications with 2 retries, concurrency 5
+  * Configured job priorities via defaultJobOptions (attempts, backoff, removeOnComplete, removeOnFail)
+  * Implemented worker event handlers (OnWorkerEvent) for completed and failed jobs
+  * Set appropriate timeouts and retry strategies with exponential backoff per queue type
+  * Redis Commander UI accessible on port 3001 for queue monitoring
+
+- Files changed:
+  * backend/src/app.module.ts (added QueuesModule import)
+  * backend/src/queues/queues.module.ts (created)
+  * backend/src/queues/processors/glm.processor.ts (created)
+  * backend/src/queues/processors/deal-verification.processor.ts (created)
+  * backend/src/queues/processors/analytics.processor.ts (created)
+  * backend/src/queues/processors/cleanup.processor.ts (created)
+  * backend/src/queues/processors/notifications.processor.ts (created)
+
+- **Learnings for future iterations:**
+  * BullMQ Integration: Use @nestjs/bullmq package, not the base bullmq package directly
+  * Module Configuration: BullMQ requires forRoot() with Redis connection, then registerQueue() for each queue
+  * Processor Pattern: Extend WorkerHost class and use @Processor('queue-name') decorator with concurrency option
+  * Job Options: Configure defaultJobOptions at queue registration time (attempts, backoff, removeOnComplete, removeOnFail)
+  * Retry Strategies: Use exponential backoff with delay starting at 1000-2000ms for critical operations
+  * Worker Events: Use @OnWorkerEvent('completed') and @OnWorkerEvent('failed') decorators for lifecycle hooks
+  * Job Data Types: Define TypeScript interfaces for job data to ensure type safety (e.g., GlmRequestJob, DealVerificationJob)
+  * Concurrency: Set appropriate concurrency per processor based on resource intensity (1-5 range is typical)
+  * Queue Naming: Use kebab-case for queue names to match BullMQ conventions (glm-requests, not glmRequests)
+  * Job Cleanup: Configure removeOnComplete and removeOnFail to prevent Redis memory bloat
+  * Dashboard: Redis Commander (port 3001) can be used to monitor BullMQ queues stored in Redis
+  * Placeholder Logic: All processors have placeholder implementations with TODO comments for future US completion
+  * Error Handling: Always log errors with stack traces in failed event handlers for debugging
+  * Job Processing: process() method receives Job<T> with typed data property containing job payload
+---
