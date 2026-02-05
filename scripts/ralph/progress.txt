@@ -286,3 +286,72 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Error Handling: Always log errors with stack traces in failed event handlers for debugging
   * Job Processing: process() method receives Job<T> with typed data property containing job payload
 ---
+## 2026-02-05 14:30 - US-008
+- What was implemented:
+  * Created GlmModule and GlmService for GLM API integration
+  * Installed axios for HTTP requests to GLM API
+  * Implemented complete system prompt template builder with:
+    - Agent personality injection (name, role, communication style)
+    - Price mandate enforcement (min/max/starting prices)
+    - Room context integration (floor price, top bid, competitor counts)
+    - Recent chat history for context-aware responses
+  * Built user message template for trigger events
+  * Implemented strategy-specific instructions for all 5 strategies:
+    - Competitive: Monitor and react to market changes dynamically
+    - Patient: Keep steady price, wait for good offers
+    - Aggressive: Undercut competitors, close deals fast
+    - Conservative: Start cautious, slowly adjust based on market
+    - Sniper: Watch quietly, strike at perfect opportunity
+  * Added communication style support for all 4 styles with detailed guidance:
+    - Formal: Professional and polite language with proper grammar
+    - Casual: Friendly and approachable with contractions
+    - Professional: Direct business language focused on facts
+    - Aggressive: Bold and assertive with confident language
+  * Configured GLM API client:
+    - Endpoint: https://api.z.ai/api/paas/v4/chat/completions
+    - Model: glm-4
+    - Temperature: 0.8 (for creative responses)
+    - Max tokens: 150 (keep responses concise)
+    - 10 second timeout
+  * Implemented comprehensive error handling:
+    - Rate limit detection (429 status)
+    - Authentication failure detection (401 status)
+    - Generic API failure handling with logging
+  * Updated GlmProcessor to use new GlmService with proper dependency injection
+  * Integrated with BullMQ glm-requests queue (existing queue now functional)
+  * Implemented response processing:
+    - Price extraction using regex pattern matching
+    - Intent detection (offer, counter, accept, reject, comment) based on keywords
+    - Sentiment analysis (positive, negative, neutral) based on emotion words
+  * Updated .env.example with correct GLM API configuration (Z.AI endpoint)
+  * Updated QueuesModule to import GlmModule
+  * Updated AppModule to import GlmModule globally
+  * Typecheck passes
+
+- Files changed:
+  * backend/package.json (added axios dependency)
+  * backend/package-lock.json (axios packages)
+  * backend/src/glm/glm.module.ts (created)
+  * backend/src/glm/glm.service.ts (created - 600+ lines)
+  * backend/src/queues/processors/glm.processor.ts (modified - integrated GlmService)
+  * backend/src/queues/queues.module.ts (modified - imported GlmModule)
+  * backend/src/app.module.ts (modified - imported GlmModule)
+  * .env.example (modified - updated GLM API URL to Z.AI endpoint)
+  * scripts/ralph/prd.json (modified - set US-008 passes to true)
+
+- **Learnings for future iterations:**
+  * GLM API uses Z.AI endpoint (https://api.z.ai/api/paas/v4) not generic glm.com
+  * GLM API follows OpenAI-compatible format for chat completions
+  * System prompts should be comprehensive but concise - include all context agents need to make decisions
+  * Strategy instructions should be specific and actionable, not generic advice
+  * Communication style guidance should include concrete examples agents can follow
+  * Intent detection requires keyword-based heuristics since GLM doesn't return structured data
+  * Price extraction from natural language requires regex pattern matching
+  * Sentiment analysis can be basic (positive/negative/neutral word counting) for MVP
+  * BullMQ processors need proper dependency injection in constructor (call super() after injecting services)
+  * Error handling for external APIs should distinguish between rate limits, auth failures, and generic errors
+  * Temperature 0.8 balances creativity with coherence for chat-style responses
+  * Max tokens 150 keeps agent messages concise and chat-friendly
+  * Response processing should extract structured data (price, intent, sentiment) for database storage
+  * GLM service should be globally available since multiple modules may need it (agents, swarms, etc.)
+---
