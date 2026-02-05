@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class RoomsService {
   private prisma: PrismaClient;
 
-  constructor() {
+  constructor(private readonly redisService: RedisService) {
     this.prisma = new PrismaClient();
   }
 
@@ -71,6 +72,13 @@ export class RoomsService {
   }
 
   async getStats(id: string) {
+    // Check cache first (5 second TTL)
+    const cachedStats = await this.redisService.getRoomStats(id);
+    if (cachedStats) {
+      return cachedStats;
+    }
+
+    // Fetch from database if not in cache
     const room = await this.prisma.room.findUnique({
       where: { id },
       include: {
@@ -92,7 +100,7 @@ export class RoomsService {
     const buyers = room.agents.filter((a) => a.role === 'buyer');
     const sellers = room.agents.filter((a) => a.role === 'seller');
 
-    return {
+    const stats = {
       activeAgents: room.agents.length,
       activeBuyers: buyers.length,
       activeSellers: sellers.length,
@@ -104,5 +112,10 @@ export class RoomsService {
         createdAt: deal.createdAt,
       })),
     };
+
+    // Cache the stats (5 second TTL)
+    await this.redisService.cacheRoomStats(id, stats);
+
+    return stats;
   }
 }

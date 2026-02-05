@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { VerifyOwnershipDto } from './dto/verify-ownership.dto';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class NftsService {
   private prisma: PrismaClient;
 
-  constructor() {
+  constructor(private readonly redisService: RedisService) {
     this.prisma = new PrismaClient();
   }
 
@@ -20,7 +21,8 @@ export class NftsService {
       },
     });
 
-    return nfts.map((nft) => ({
+    // Cache each NFT's metadata
+    const result = nfts.map((nft) => ({
       id: nft.id,
       name: nft.name,
       collection: nft.collection,
@@ -29,6 +31,19 @@ export class NftsService {
       metadata: nft.metadata,
       createdAt: nft.createdAt,
     }));
+
+    // Cache metadata for each NFT (fire and forget)
+    for (const nft of result) {
+      this.redisService.cacheNftMetadata(nft.id, {
+        name: nft.name,
+        collection: nft.collection,
+        tokenId: nft.tokenId,
+        imageUrl: nft.imageUrl,
+        metadata: nft.metadata,
+      });
+    }
+
+    return result;
   }
 
   async verifyOwnership(verifyDto: VerifyOwnershipDto) {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { AgentsModule } from './agents/agents.module';
@@ -11,6 +12,7 @@ import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
+    RedisModule,
     AuthModule,
     RoomsModule,
     AgentsModule,

@@ -13,6 +13,7 @@ import { Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
+import { RedisService } from '../redis/redis.service';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -43,7 +44,10 @@ export class WebsocketGateway
   private logger = new Logger('WebsocketGateway');
   private connectedClients = new Map<string, AuthenticatedSocket>();
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private redisService: RedisService,
+  ) {}
 
   async afterInit(server: Server) {
     this.logger.log('WebSocket Gateway initialized');
@@ -79,6 +83,13 @@ export class WebsocketGateway
       // Track connected client
       this.connectedClients.set(client.id, client);
 
+      // Track WebSocket session in Redis
+      await this.redisService.trackWebSocketSession(client.id, {
+        userId: client.userId,
+        walletAddress: client.walletAddress,
+        connectedAt: new Date().toISOString(),
+      });
+
       this.logger.log(
         `Client connected: ${client.id} (User: ${client.walletAddress})`,
       );
@@ -96,7 +107,7 @@ export class WebsocketGateway
     }
   }
 
-  handleDisconnect(client: AuthenticatedSocket) {
+  async handleDisconnect(client: AuthenticatedSocket) {
     // Leave all joined rooms
     if (client.joinedRooms) {
       client.joinedRooms.forEach((roomId) => {
@@ -105,6 +116,10 @@ export class WebsocketGateway
     }
 
     this.connectedClients.delete(client.id);
+
+    // Clean up WebSocket session from Redis
+    await this.redisService.deleteWebSocketSession(client.id);
+
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
