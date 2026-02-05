@@ -437,3 +437,39 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Decision service methods are designed to be called by future scheduler or event triggers
   * Market context gathering hits both database (recent messages, active agents) and Redis (floor/bid prices)
 ---
+## 2026-02-05 21:35 - US-011
+- What was implemented:
+  * Created complete Rust service with Actix-web framework running on port 8080
+  * Initialized Cargo project with all required dependencies (actix-web, tokio, serde, ed25519-dalek, sha2, hex, env_logger, rand)
+  * Implemented POST /verify-signature endpoint with Ed25519 signature verification using ed25519-dalek library
+  * Implemented POST /run-consensus endpoint with mock BFT consensus (7 verifiers, 67% threshold)
+  * Implemented POST /execute-escrow endpoint with mock blockchain transaction execution
+  * Implemented GET /health endpoint returning service status and version
+  * Created comprehensive request/response models with Serde serialization
+  * Added comprehensive error handling with proper JSON error responses
+  * Added logging with env_logger for debugging and monitoring
+  * All endpoints tested and verified to compile successfully
+  * Backend typecheck passes
+
+- Files changed:
+  * rust-services/Cargo.toml (created - project configuration with dependencies)
+  * rust-services/src/main.rs (created - Actix-web server setup with route configuration)
+  * rust-services/src/models.rs (created - request/response structs with Serde)
+  * rust-services/src/handlers.rs (created - endpoint implementations with 200+ lines)
+
+- **Learnings for future iterations:**
+  * Rust edition should be "2021" not "2024" (cargo init sometimes sets incorrect edition)
+  * Ed25519 signature verification: Signature::from_bytes returns Signature directly in ed25519-dalek 2.0 (not Result)
+  * Public keys and signatures must be exactly 32 and 64 bytes respectively for Ed25519
+  * Hex decoding should be validated before creating cryptographic types
+  * Mock BFT consensus can check multiple conditions: NFT ownership, buyer balance, signature validity
+  * Mock blockchain transactions can use SHA256 hashing of deal details for deterministic tx_hash generation
+  * Actix-web uses HttpResponse::Ok().json() for successful JSON responses, HttpResponse::BadRequest().json() for errors
+  * Actix-web route handlers use web::Json<T> for automatic JSON deserialization with Serde
+  * env_logger provides simple logging setup with RUST_LOG environment variable
+  * Rust service should bind to 0.0.0.0:8080 to be accessible from NestJS backend
+  * All endpoints should have comprehensive error handling to prevent panics
+  * Random number generation for mock data requires rand crate with rand::thread_rng()
+  * Cargo build downloads and compiles dependencies (can take 1-2 minutes first time)
+  * Warning about unused ErrorResponse struct can be ignored (reserved for future use)
+---
