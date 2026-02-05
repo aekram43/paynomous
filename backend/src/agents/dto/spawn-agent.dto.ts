@@ -10,6 +10,11 @@ export class SpawnAgentDto {
   @IsString()
   name: string;
 
+  @ApiProperty({ description: 'Agent avatar emoji', required: false })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
   @ApiProperty({ description: 'Agent role', enum: ['buyer', 'seller'] })
   @IsEnum(['buyer', 'seller'])
   role: 'buyer' | 'seller';

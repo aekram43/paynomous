@@ -1,12 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { SpawnAgentDto } from './dto/spawn-agent.dto';
+import { RedisService } from '../redis/redis.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 
 @Injectable()
 export class AgentsService {
   private prisma: PrismaClient;
 
-  constructor() {
+  constructor(
+    private redisService: RedisService,
+    @Inject(forwardRef(() => WebsocketGateway))
+    private websocketGateway: WebsocketGateway,
+  ) {
     this.prisma = new PrismaClient();
   }
 
@@ -51,6 +57,7 @@ export class AgentsService {
         userId: userId,
         roomId: spawnDto.roomId,
         nftId: spawnDto.nftId,
+        avatar: spawnDto.avatar || '🤖',
       },
       include: {
         room: true,
@@ -61,6 +68,29 @@ export class AgentsService {
           },
         },
       },
+    });
+
+    // Initialize Redis floor/bid tracking
+    const price = parseFloat(spawnDto.startingPrice.toString());
+    if (agent.role === 'seller') {
+      await this.redisService.updateFloorPrice(
+        spawnDto.roomId,
+        agent.id,
+        price,
+      );
+    } else {
+      await this.redisService.updateTopBid(spawnDto.roomId, agent.id, price);
+    }
+
+    // Broadcast agent_joined event via WebSocket
+    this.websocketGateway.broadcastAgentJoined(spawnDto.roomId, {
+      id: agent.id,
+      name: agent.name,
+      avatar: agent.avatar || '🤖',
+      role: agent.role,
+      strategy: agent.strategy,
+      personality: agent.communicationStyle,
+      startingPrice: price,
     });
 
     return {
@@ -143,6 +173,20 @@ export class AgentsService {
     if (agent.status === 'locked' || agent.status === 'completed') {
       throw new BadRequestException('Cannot delete agent in locked or completed state');
     }
+
+    // Remove from Redis floor/bid tracking
+    if (agent.role === 'seller') {
+      await this.redisService.removeAgentFromFloor(agent.roomId, agent.id);
+    } else {
+      await this.redisService.removeAgentFromBids(agent.roomId, agent.id);
+    }
+
+    // Broadcast agent_left event
+    this.websocketGateway.broadcastAgentLeft(agent.roomId, {
+      id: agent.id,
+      name: agent.name,
+      reason: 'user_removed',
+    });
 
     await this.prisma.agent.delete({
       where: { id },

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { GlmProcessor } from './processors/glm.processor';
 import { DealVerificationProcessor } from './processors/deal-verification.processor';
@@ -6,10 +6,12 @@ import { AnalyticsProcessor } from './processors/analytics.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
 import { NotificationsProcessor } from './processors/notifications.processor';
 import { GlmModule } from '../glm/glm.module';
+import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [
     GlmModule,
+    forwardRef(() => WebsocketModule),
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',

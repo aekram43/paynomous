@@ -213,6 +213,80 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Helper methods for AgentDecisionService
+
+  async getFloorPrice(roomId: string): Promise<number | null> {
+    try {
+      const key = `room:${roomId}:floor`;
+      const result = await this.client.zrange(key, 0, 0, 'WITHSCORES');
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      return parseFloat(result[1]);
+    } catch (error) {
+      this.logger.error(`Failed to get floor price for room ${roomId}:`, error);
+      return null;
+    }
+  }
+
+  async getTopBid(roomId: string): Promise<number | null> {
+    try {
+      const key = `room:${roomId}:bids`;
+      const result = await this.client.zrevrange(key, 0, 0, 'WITHSCORES');
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      return parseFloat(result[1]);
+    } catch (error) {
+      this.logger.error(`Failed to get top bid for room ${roomId}:`, error);
+      return null;
+    }
+  }
+
+  async updateFloorPrice(roomId: string, agentId: string, price: number): Promise<void> {
+    try {
+      const key = `room:${roomId}:floor`;
+      await this.client.zadd(key, price, agentId);
+      this.logger.debug(`Updated floor price for room ${roomId}: ${agentId} = ${price}`);
+    } catch (error) {
+      this.logger.error(`Failed to update floor price for room ${roomId}:`, error);
+    }
+  }
+
+  async updateTopBid(roomId: string, agentId: string, bid: number): Promise<void> {
+    try {
+      const key = `room:${roomId}:bids`;
+      await this.client.zadd(key, bid, agentId);
+      this.logger.debug(`Updated top bid for room ${roomId}: ${agentId} = ${bid}`);
+    } catch (error) {
+      this.logger.error(`Failed to update top bid for room ${roomId}:`, error);
+    }
+  }
+
+  async removeAgentFromFloor(roomId: string, agentId: string): Promise<void> {
+    try {
+      const key = `room:${roomId}:floor`;
+      await this.client.zrem(key, agentId);
+      this.logger.debug(`Removed agent ${agentId} from floor in room ${roomId}`);
+    } catch (error) {
+      this.logger.error(`Failed to remove agent from floor:`, error);
+    }
+  }
+
+  async removeAgentFromBids(roomId: string, agentId: string): Promise<void> {
+    try {
+      const key = `room:${roomId}:bids`;
+      await this.client.zrem(key, agentId);
+      this.logger.debug(`Removed agent ${agentId} from bids in room ${roomId}`);
+    } catch (error) {
+      this.logger.error(`Failed to remove agent from bids:`, error);
+    }
+  }
+
   // ============================================================================
   // Room Stats Caching (5 second TTL)
   // ============================================================================
