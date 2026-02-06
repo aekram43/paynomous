@@ -13,6 +13,9 @@ import { WebsocketModule } from './websocket/websocket.module';
 import { QueuesModule } from './queues/queues.module';
 import { GlmModule } from './glm/glm.module';
 import { LoggerModule } from './logger/logger.module';
+import { HealthModule } from './health/health.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { LoggerModule } from './logger/logger.module';
     DealsModule,
     NftsModule,
     WebsocketModule,
+    HealthModule,
+    MetricsModule,
+    AlertsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

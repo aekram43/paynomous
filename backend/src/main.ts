@@ -5,8 +5,10 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { MetricsMiddleware } from './common/middleware/metrics.middleware';
 import { RedisService } from './redis/redis.service';
 import { RateLimitInterceptor } from './common/decorators/rate-limit.decorator';
+import { MetricsService } from './metrics/metrics.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,9 +17,16 @@ async function bootstrap() {
   // Apply request ID middleware for tracing
   app.use(new RequestIdMiddleware().use);
 
-  // Get Redis service for rate limiting
+  // Get services for middleware
   const redisService = app.get(RedisService);
+  const metricsService = app.get(MetricsService);
+
+  // Set up middleware dependencies
   RateLimitInterceptor.setRedisService(redisService);
+  MetricsMiddleware.setMetricsService(metricsService);
+
+  // Apply metrics middleware for API response time tracking
+  app.use(new MetricsMiddleware().use);
 
   // Security: Helmet.js middleware for security headers
   // Prevents XSS, clickjacking, MIME-sniffing, and other vulnerabilities
