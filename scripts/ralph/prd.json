@@ -452,7 +452,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 6: Swarm Mode - Week 9"
     },
     {

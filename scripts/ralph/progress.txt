@@ -1323,3 +1323,52 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Alert notifications via email/Slack are configured via environment variables (implementation is TODO in AlertsService)
   * Kubernetes readiness/liveness probes use /health/ready and /health/live endpoints
   * Typecheck passes after fixing interface exports and PrismaClient usage
+---
+
+## 2026-02-06 23:00 - US-023: Swarm Analytics Dashboard
+- What was implemented:
+  * Created swarms API client (frontend/lib/api/swarms.ts) with getSwarm, spawnSwarm, updateSwarm, exportSwarmAnalytics
+  * Built comprehensive analytics dashboard page at /swarms/[id]/analytics with:
+    - Key metrics cards: total deals, success rate, avg deal time, active agents count
+    - SVG-based DealTimeChart: bar chart showing negotiation times per deal with price indicators
+    - SVG-based PriceDistribution: histogram of deal prices in 10 buckets
+    - SVG-based StrategyPerformance: horizontal bar chart comparing strategies by deals and avg price
+    - Agent performance summary: completed agents list and active agents list with details
+    - Swarm timeline: creation time, completion time, deals completed milestones
+    - Export JSON button for downloading full analytics data
+    - Real-time auto-refresh every 30 seconds
+    - Status indicator with color coding (green=running, yellow=paused, blue=completed)
+  * Added formatTime utility to utils.ts for seconds-to-human-readable conversion (e.g., "2m 30s")
+  * Dashboard integrates with existing authentication (useAuthStore) and API client patterns
+
+- Files changed:
+  * frontend/lib/api/swarms.ts (created - 78 lines, complete swarms API client)
+  * frontend/app/swarms/[id]/analytics/page.tsx (created - 684 lines, full analytics dashboard)
+  * frontend/lib/utils.ts (modified - added formatTime function)
+
+- **Learnings for future iterations:**
+  * SVG charts can be created without external charting libraries (recharts, chart.js) to reduce bundle size
+  * SVG gradient definitions (<defs><linearGradient>) create polished chart visuals without dependencies
+  * Bar chart width calculation: Math.max(20, 200 / data.length - 4) prevents bars from being too thin
+  * Histogram bucketing: divide (price - minPrice) by bucketSize to find bucket index
+  * Price distribution uses 10 buckets by default for meaningful visualization
+  * Strategy colors map: competitive=blue, patient=green, aggressive=red, conservative=purple, sniper=orange
+  * Swarm analytics endpoint GET /swarms/:id returns data in calculateSwarmAnalytics() method
+  * Analytics data structure includes: totalDeals, successRate, avgNegotiationTime, activeAgents, completedAgents, strategyPerformance
+  * strategyPerformance object: Record<string, { deals: number, avgPrice: number }>
+  * formatTime conversion: seconds → minutes:seconds or hours:minutes:seconds for human readability
+  * Dashboard polling: useEffect with 30-second setInterval for near-real-time updates
+  * Auto-scroll behavior not needed for analytics dashboard (unlike chat room)
+  * Export functionality uses Blob API with application/json content type
+  * URL.createObjectURL and revokeObjectURL prevent memory leaks with blob downloads
+  * Status color mapping: running=green, paused=yellow, completed=blue, other=gray
+  * Avatar fallback to '🤖' when null or undefined in agent lists
+  * Cards use bg-gray-800 with border-gray-700 for consistent dark theme
+  * Metrics cards show icon, label, value with color-coded icons for visual hierarchy
+  * Grid layouts: metrics (4 cols), charts (2 cols), strategy performance (1 col)
+  * Responsive design: grid-cols-1 md:grid-cols-2 lg:grid-cols-4 pattern for breakpoints
+  * Empty states should show icons and helpful messages when no data available
+  * Loading states use spinner with "Loading analytics..." message
+  * Error states use XCircle icon with "Go Back" button
+  * Back button navigation uses router.push() to return to room or dashboard
+---
