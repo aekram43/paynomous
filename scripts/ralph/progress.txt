@@ -707,3 +707,48 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * flex-wrap with gap is ideal for responsive card layouts
   * animate-pulse creates breathing effect for status indicators
 ---
+
+## 2026-02-06 16:00 - US-027
+- What was implemented:
+  * Installed and configured Helmet.js middleware for security headers
+  * Implemented Content Security Policy (CSP) with strict directives
+  * Enabled HSTS (HTTP Strict Transport Security) with 1-year max age and preload
+  * Added XSS protection, clickjacking prevention, and MIME-sniffing protection
+  * Implemented proper CORS configuration with allowed origins from environment variable
+  * Added HTTPS enforcement for production environment (auto-redirect HTTP to HTTPS)
+  * Created global exception filter (HttpExceptionFilter) to prevent sensitive data leakage
+  * Exception filter sanitizes error messages to redact sensitive patterns (passwords, API keys, tokens)
+  * Exception filter only includes stack traces in non-production environments
+  * Updated WebSocket gateway to use environment-based CORS configuration
+  * Added security environment variables: CORS_ALLOWED_ORIGINS, NODE_ENV, PORT
+  * Enhanced JWT_SECRET comment to emphasize minimum 32 characters
+  * Disabled Swagger documentation in production environment
+  * Verified existing security measures: class-validator input validation, Prisma ORM SQL injection prevention, JWT authentication on WebSocket connections
+
+- Files changed:
+  * backend/package.json (modified - added helmet dependency)
+  * backend/package-lock.json (modified - helmet package)
+  * backend/src/main.ts (modified - added Helmet, HTTPS enforcement, proper CORS, exception filter, production-only Swagger)
+  * backend/src/websocket/websocket.gateway.ts (modified - environment-based CORS configuration)
+  * backend/src/common/filters/http-exception.filter.ts (created - global exception filter with sanitization)
+  * .env.example (modified - added CORS_ALLOWED_ORIGINS, NODE_ENV, PORT, enhanced JWT_SECRET comment)
+  * scripts/ralph/prd.json (modified - set US-027 passes to true)
+
+- **Learnings for future iterations:**
+  * Helmet.js uses default export syntax: `import helmet from 'helmet'` not `import * as helmet from 'helmet'`
+  * Content Security Policy (CSP) should be configured with strict directives: defaultSrc 'self', scriptSrc 'self', objectSrc 'none'
+  * HSTS preload requires max-age of at least 31536000 (1 year) and includeSubDomains: true
+  * CORS should be configured with explicit origin allow-list, not wildcard '*', especially in production
+  * CORS origin function callback allows dynamic validation of requests and logs blocked origins for security monitoring
+  * HTTPS enforcement middleware should check `!req.secure && req.protocol !== 'https'` before redirecting
+  * Global exception filters should sanitize error messages to prevent leaking sensitive data patterns
+  * Sensitive patterns to redact in logs: password, secret, api_key, token, authorization, private_key, seed
+  * Swagger documentation should be disabled in production (check NODE_ENV === 'production')
+  * WebSocket CORS should match HTTP CORS configuration using same environment variable
+  * class-validator with ValidationPipe whitelist: true already prevents unknown properties (XSS vector prevention)
+  * Prisma ORM already prevents SQL injection via parameterized queries (no manual SQL string concatenation)
+  * JWT authentication on WebSocket connections already validated in handleConnection method
+  * Wallet addresses are public blockchain data and can be safely logged
+  * CORS_ALLOWED_ORIGINS should be comma-separated without spaces for proper parsing
+  * Production vs development environment differences should be handled via NODE_ENV variable
+---
