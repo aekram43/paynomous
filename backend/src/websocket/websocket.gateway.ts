@@ -31,7 +31,10 @@ interface LeaveRoomPayload {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.CORS_ALLOWED_ORIGINS
+      ? process.env.CORS_ALLOWED_ORIGINS.split(',')
+      : ['http://localhost:3002', 'http://localhost:3000'],
+    credentials: true,
   },
   namespace: '/ws',
 })
