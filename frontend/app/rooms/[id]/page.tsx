@@ -76,9 +76,12 @@ export default function RoomDetailPage() {
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [dealNotification, setDealNotification] = useState<{
-    type: 'locked' | 'completed';
-    data: DealLockedData | DealCompletedData;
+    type: 'locked' | 'verifying' | 'completed' | 'error';
+    data: DealLockedData | DealCompletedData | { dealId: string; error: string; txHash?: string; blockNumber?: number; nft?: { name: string; collection: string } };
+    verifyingProgress?: { stage: string; progress: number };
   } | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [completedDeals, setCompletedDeals] = useState<DealCompletedData[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -136,14 +139,54 @@ export default function RoomDetailPage() {
     },
     onDealLocked: (data: DealLockedData) => {
       setDealNotification({ type: 'locked', data });
-      setTimeout(() => setDealNotification(null), 5000);
+      // Update agent statuses to deal_locked
+      setAgents((prev) =>
+        prev.map((agent) =>
+          agent.id === data.buyerAgent.id || agent.id === data.sellerAgent.id
+            ? { ...agent, status: 'deal_locked' as const }
+            : agent
+        )
+      );
+    },
+    onDealVerifying: (data: { dealId: string; progress: number; stage: string }) => {
+      setDealNotification((prev) => {
+        if (prev?.type === 'locked' || prev?.type === 'verifying') {
+          return {
+            type: 'verifying',
+            data: prev.data,
+            verifyingProgress: { stage: data.stage, progress: data.progress },
+          };
+        }
+        return prev;
+      });
     },
     onDealCompleted: (data: DealCompletedData) => {
       setDealNotification({ type: 'completed', data });
-      setTimeout(() => setDealNotification(null), 5000);
+      // Trigger confetti animation
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000);
+      // Mark agents as completed
+      setAgents((prev) =>
+        prev.map((agent) =>
+          agent.id === data.buyer.id || agent.id === data.seller.id
+            ? { ...agent, status: 'completed' as const }
+            : agent
+        )
+      );
+      // Add to completed deals
+      setCompletedDeals((prev) => [...prev, data]);
+      // Auto-dismiss notification after 8 seconds
+      setTimeout(() => setDealNotification(null), 8000);
     },
     onAgentLeft: (data: AgentLeftData) => {
       setAgents((prev) => prev.filter((a) => a.id !== data.agentId));
+    },
+    onError: (data: { message: string }) => {
+      setDealNotification({
+        type: 'error',
+        data: { dealId: '', error: data.message },
+      });
+      setTimeout(() => setDealNotification(null), 5000);
     },
   };
 
@@ -377,6 +420,13 @@ export default function RoomDetailPage() {
         {dealNotification && (
           <DealNotification notification={dealNotification} />
         )}
+
+        {/* Confetti Celebration */}
+        {showConfetti && (
+          <div className="fixed inset-0 pointer-events-none z-[100]">
+            <Confetti />
+          </div>
+        )}
       </div>
 
       {/* Spawn Agent Modal */}
@@ -492,7 +542,22 @@ function AgentCard({ agent }: { agent: AgentWithStatus }) {
 }
 
 // Deal Notification Component
-function DealNotification({ notification }: { notification: { type: 'locked' | 'completed'; data: DealLockedData | DealCompletedData } }) {
+function DealNotification({ notification }: { notification: { type: 'locked' | 'verifying' | 'completed' | 'error'; data: DealLockedData | DealCompletedData | { dealId: string; error: string }; verifyingProgress?: { stage: string; progress: number } } }) {
+  if (notification.type === 'error') {
+    const data = notification.data as { dealId: string; error: string };
+    return (
+      <div className="fixed top-20 right-4 bg-red-900/90 border border-red-700 text-red-100 px-6 py-4 rounded-lg shadow-lg animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-red-800 rounded-full flex items-center justify-center text-xl">❌</div>
+          <div>
+            <p className="font-medium">Deal Failed</p>
+            <p className="text-sm text-red-200">{data.error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (notification.type === 'locked') {
     const data = notification.data as DealLockedData;
     return (
@@ -502,23 +567,125 @@ function DealNotification({ notification }: { notification: { type: 'locked' | '
           <div>
             <p className="font-medium">Deal Locked!</p>
             <p className="text-sm text-yellow-200">{data.buyerAgent.name} → {data.sellerAgent.name} ({formatPrice(data.price)})</p>
+            <p className="text-xs text-yellow-300 mt-1">Verifying ownership...</p>
           </div>
         </div>
       </div>
     );
   }
 
+  if (notification.type === 'verifying') {
+    const stages = [
+      { key: 'ownership', label: 'Ownership', icon: '🔐' },
+      { key: 'balance', label: 'Balance', icon: '💰' },
+      { key: 'consensus', label: 'Consensus', icon: '🤝' },
+      { key: 'execution', label: 'Execution', icon: '⚡' },
+    ];
+    const currentStageIndex = stages.findIndex((s) => s.key === notification.verifyingProgress?.stage);
+
+    return (
+      <div className="fixed top-20 right-4 bg-blue-900/90 border border-blue-700 text-blue-100 px-6 py-4 rounded-lg shadow-lg max-w-sm">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-blue-800 rounded-full flex items-center justify-center text-xl animate-spin">⚙️</div>
+          <div>
+            <p className="font-medium">Verifying Deal...</p>
+            <p className="text-sm text-blue-200">{notification.verifyingProgress?.stage || 'Processing'}</p>
+          </div>
+        </div>
+        <div className="w-full bg-blue-950 rounded-full h-2 mb-2">
+          <div
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${notification.verifyingProgress?.progress || 0}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs">
+          {stages.map((stage, index) => (
+            <div
+              key={stage.key}
+              className={`flex flex-col items-center ${
+                index <= currentStageIndex ? 'text-blue-200' : 'text-blue-400'
+              }`}
+            >
+              <span className="text-lg">{stage.icon}</span>
+              <span className="mt-1">{stage.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const data = notification.data as DealCompletedData;
+  const blockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL || 'https://ark-testnet.explorer';
+  const txHashUrl = `${blockExplorerUrl}/tx/${data.txHash}`;
+
   return (
-    <div className="fixed top-20 right-4 bg-green-900/90 border border-green-700 text-green-100 px-6 py-4 rounded-lg shadow-lg animate-pulse">
-      <div className="flex items-center gap-3">
+    <div className="fixed top-20 right-4 bg-green-900/90 border border-green-700 text-green-100 px-6 py-4 rounded-lg shadow-lg max-w-sm animate-pulse">
+      <div className="flex items-center gap-3 mb-3">
         <div className="w-10 h-10 bg-green-800 rounded-full flex items-center justify-center text-xl">✅</div>
         <div>
           <p className="font-medium">Deal Completed!</p>
           <p className="text-sm text-green-200">{data.nft.name} sold for {formatPrice(data.price)}</p>
         </div>
       </div>
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-green-300">Buyer:</span>
+          <span className="font-medium">{data.buyer.name}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-green-300">Seller:</span>
+          <span className="font-medium">{data.seller.name}</span>
+        </div>
+        <div className="pt-2 border-t border-green-700">
+          <a
+            href={txHashUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-green-200 hover:text-green-100 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            <span className="font-mono text-xs truncate">{data.txHash.slice(0, 10)}...{data.txHash.slice(-8)}</span>
+          </a>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Confetti Component
+function Confetti() {
+  const colors = ['#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#3B82F6'];
+
+  return (
+    <>
+      <style jsx>{`
+        @keyframes fall {
+          0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .animate-fall {
+          animation: fall linear forwards;
+        }
+      `}</style>
+      {Array.from({ length: 50 }, (_, i) => (
+        <div
+          key={i}
+          className="animate-fall absolute rounded-full"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: '-20px',
+            width: 5 + Math.random() * 10,
+            height: 5 + Math.random() * 10,
+            backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+            animationDelay: `${Math.random() * 3}s`,
+            animationDuration: `${3 + Math.random() * 2}s`,
+          }}
+        />
+      ))}
+    </>
   );
 }
 
