@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { getRoom, type RoomDetail } from '@/lib/api/rooms';
 import { getNfts, type Nft } from '@/lib/api/nfts';
 import { spawnAgent, type Agent, type SpawnAgentRequest } from '@/lib/api/agents';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useWebSocket, type RoomStatsUpdate, type AgentMessageData, type AgentJoinedData, type DealLockedData, type DealCompletedData, type AgentLeftData } from '@/lib/hooks/useWebSocket';
 
 const AVATARS = ['🤖', '🦊', '🐸', '🦄', '🐲', '👾', '🎭', '🦸', '🧙', '🚀'];
 
@@ -34,6 +35,29 @@ const PERSONALITIES: Array<{
   { value: 'aggressive', label: 'Aggressive', description: 'Bold and assertive' },
 ];
 
+// Agent status types
+interface AgentWithStatus {
+  id: string;
+  name: string;
+  avatar: string | null;
+  role: 'buyer' | 'seller';
+  status: 'active' | 'negotiating' | 'deal_locked' | 'completed';
+  userId: string;
+}
+
+interface ChatMessage {
+  id: string;
+  agent: {
+    id: string;
+    name: string;
+    avatar: string | null;
+  };
+  message: string;
+  timestamp: string;
+  priceMentioned?: number;
+  intent?: string;
+}
+
 export default function RoomDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -47,6 +71,84 @@ export default function RoomDetailPage() {
   const [spawnedAgent, setSpawnedAgent] = useState<Agent | null>(null);
   const [userNfts, setUserNfts] = useState<Nft[]>([]);
 
+  // Real-time state
+  const [roomStats, setRoomStats] = useState<RoomStatsUpdate | null>(null);
+  const [agents, setAgents] = useState<AgentWithStatus[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [dealNotification, setDealNotification] = useState<{
+    type: 'locked' | 'completed';
+    data: DealLockedData | DealCompletedData;
+  } | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (autoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, autoScroll]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+    setAutoScroll(isNearBottom);
+  }, []);
+
+  // WebSocket callbacks
+  const wsCallbacks = {
+    onRoomStats: (data: RoomStatsUpdate) => {
+      setRoomStats(data);
+    },
+    onAgentJoined: (data: AgentJoinedData) => {
+      setAgents((prev) => {
+        const exists = prev.find((a) => a.id === data.agent.id);
+        if (exists) return prev;
+        return [...prev, {
+          id: data.agent.id,
+          name: data.agent.name,
+          avatar: data.agent.avatar,
+          role: data.agent.role,
+          status: 'active',
+          userId: user?.id || '',
+        }];
+      });
+    },
+    onAgentMessage: (data: AgentMessageData) => {
+      const newMessage: ChatMessage = {
+        id: `${data.agent.id}-${Date.now()}`,
+        agent: data.agent,
+        message: data.message,
+        timestamp: data.timestamp || new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, newMessage]);
+
+      // Highlight price mentions
+      const priceMatch = data.message.match(/\d+(?:\.\d{1,2})?/);
+      if (priceMatch) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === newMessage.id
+            ? { ...m, priceMentioned: parseFloat(priceMatch[0]) }
+            : m
+        ));
+      }
+    },
+    onDealLocked: (data: DealLockedData) => {
+      setDealNotification({ type: 'locked', data });
+      setTimeout(() => setDealNotification(null), 5000);
+    },
+    onDealCompleted: (data: DealCompletedData) => {
+      setDealNotification({ type: 'completed', data });
+      setTimeout(() => setDealNotification(null), 5000);
+    },
+    onAgentLeft: (data: AgentLeftData) => {
+      setAgents((prev) => prev.filter((a) => a.id !== data.agentId));
+    },
+  };
+
+  useWebSocket(roomId, wsCallbacks);
+
   useEffect(() => {
     if (roomId) {
       fetchRoom();
@@ -58,6 +160,15 @@ export default function RoomDetailPage() {
       setLoading(true);
       const { room: roomData } = await getRoom(roomId);
       setRoom(roomData);
+
+      // Initialize room stats
+      setRoomStats({
+        floorPrice: roomData.floorPrice,
+        topBid: roomData.topBid,
+        activeAgents: roomData.activeAgents,
+        activeBuyers: roomData.activeBuyers,
+        activeSellers: roomData.activeSellers,
+      });
 
       // Fetch user's NFTs for potential seller agents
       if (isAuthenticated) {
@@ -74,8 +185,15 @@ export default function RoomDetailPage() {
   const handleSpawnAgent = (agent: Agent) => {
     setSpawnedAgent(agent);
     setShowSpawnModal(false);
-    // Refresh room data to show the new agent
-    fetchRoom();
+    // Add agent to local state
+    setAgents((prev) => [...prev, {
+      id: agent.id,
+      name: agent.name,
+      avatar: agent.avatar,
+      role: agent.role,
+      status: 'active',
+      userId: user?.id || '',
+    }]);
   };
 
   if (loading) {
@@ -111,7 +229,7 @@ export default function RoomDetailPage() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <button
             onClick={() => router.push('/rooms')}
             className="text-gray-400 hover:text-gray-200 mb-4 flex items-center gap-2 transition-colors"
@@ -121,16 +239,16 @@ export default function RoomDetailPage() {
             </svg>
             Back to Rooms
           </button>
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
               <span className="inline-block px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-xs font-medium text-purple-400 mb-3">
                 {room.collection}
               </span>
-              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
                 {room.name}
               </h1>
               <p className="text-gray-400">
-                {room.activeBuyers + room.activeSellers} active agents • {room.recentDeals.length} recent deals
+                {roomStats?.activeAgents || room.activeAgents} active agents
               </p>
             </div>
             <Button onClick={() => setShowSpawnModal(true)} size="lg">
@@ -142,17 +260,88 @@ export default function RoomDetailPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatCard label="Floor Price" value={formatPrice(room.floorPrice)} />
-          <StatCard label="Top Bid" value={formatPrice(room.topBid)} />
-          <StatCard label="Active Agents" value={room.activeAgents.toString()} />
+        {/* Market Stats Panel */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <StatCard label="Floor Price" value={formatPrice(roomStats?.floorPrice || room.floorPrice)} />
+          <StatCard label="Top Bid" value={formatPrice(roomStats?.topBid || room.topBid)} />
+          <StatCard label="Active Buyers" value={roomStats?.activeBuyers?.toString() || room.activeBuyers.toString()} />
+          <StatCard label="Active Sellers" value={roomStats?.activeSellers?.toString() || room.activeSellers.toString()} />
+        </div>
+
+        {/* Main Layout: Chat + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Chat Window */}
+          <div className="lg:col-span-3">
+            <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+              {/* Chat Header */}
+              <div className="bg-gray-900 px-6 py-4 border-b border-gray-800">
+                <h2 className="text-lg font-semibold text-gray-100">Live Negotiation</h2>
+                <p className="text-sm text-gray-400">Watch agents negotiate in real-time</p>
+              </div>
+
+              {/* Messages */}
+              <div
+                className="h-[500px] overflow-y-auto px-6 py-4 space-y-4"
+                onScroll={handleScroll}
+              >
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <p>Waiting for messages...</p>
+                      <p className="text-sm mt-1">Messages will appear here when agents start negotiating</p>
+                    </div>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <ChatMessage key={msg.id} message={msg} />
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Auto-scroll indicator */}
+              {!autoScroll && messages.length > 0 && (
+                <button
+                  onClick={() => {
+                    setAutoScroll(true);
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                >
+                  Scroll to latest
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Agent Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+              <div className="bg-gray-900 px-4 py-3 border-b border-gray-800">
+                <h3 className="font-semibold text-gray-100">Active Agents</h3>
+              </div>
+              <div className="divide-y divide-gray-800 max-h-[500px] overflow-y-auto">
+                {agents.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    No active agents yet
+                  </div>
+                ) : (
+                  agents.map((agent) => (
+                    <AgentCard key={agent.id} agent={agent} />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Recent Deals */}
         {room.recentDeals.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-100 mb-4">Recent Deals</h2>
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold text-gray-100 mb-4">Recent Deals</h2>
             <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
               {room.recentDeals.map((deal) => (
                 <div key={deal.id} className="p-4 border-b border-gray-800 last:border-b-0">
@@ -183,6 +372,11 @@ export default function RoomDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Deal Notification */}
+        {dealNotification && (
+          <DealNotification notification={dealNotification} />
+        )}
       </div>
 
       {/* Spawn Agent Modal */}
@@ -201,9 +395,9 @@ export default function RoomDetailPage() {
 // Stat Card Component
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-      <p className="text-sm text-gray-400 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-100">{value}</p>
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className="text-xl font-bold text-gray-100">{value}</p>
     </div>
   );
 }
@@ -218,7 +412,117 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
-// Spawn Agent Modal Component
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return date.toLocaleDateString();
+}
+
+// Chat Message Component
+function ChatMessage({ message }: { message: ChatMessage }) {
+  const highlightPrice = (text: string): { __html: string } => {
+    if (message.priceMentioned) {
+      const regex = new RegExp(`\\b${message.priceMentioned}(?:\\.\\d{1,2})?\\b`, 'g');
+      return { __html: text.replace(regex, '<span class="text-green-400 font-semibold">$&</span>') };
+    }
+    return { __html: text };
+  };
+
+  return (
+    <div className="flex gap-3">
+      <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-xl flex-shrink-0">
+        {message.agent.avatar || '🤖'}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="font-medium text-gray-200">{message.agent.name}</span>
+          <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
+        </div>
+        <p className="text-gray-300 break-words" dangerouslySetInnerHTML={highlightPrice(message.message)} />
+        {message.intent && (
+          <span className="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded text-xs text-purple-300 capitalize">
+            {message.intent}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Agent Card Component
+function AgentCard({ agent }: { agent: AgentWithStatus }) {
+  const statusConfig = {
+    active: { color: 'bg-green-500', label: 'Active' },
+    negotiating: { color: 'bg-blue-500', label: 'Negotiating' },
+    deal_locked: { color: 'bg-yellow-500', label: 'In Deal' },
+    completed: { color: 'bg-gray-500', label: 'Done' },
+  };
+
+  const config = statusConfig[agent.status];
+
+  return (
+    <div className="p-3 hover:bg-gray-800/50 transition-colors">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-xl flex-shrink-0">
+          {agent.avatar || '🤖'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-gray-200 truncate">{agent.name}</p>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 text-xs text-gray-400`}>
+              {agent.role === 'buyer' ? '💰' : '🎨'}
+              {agent.role}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${config.color.replace('bg-', 'text-')}`}>
+              <span className={`w-1.5 h-1.5 ${config.color} rounded-full`}></span>
+              {config.label}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Deal Notification Component
+function DealNotification({ notification }: { notification: { type: 'locked' | 'completed'; data: DealLockedData | DealCompletedData } }) {
+  if (notification.type === 'locked') {
+    const data = notification.data as DealLockedData;
+    return (
+      <div className="fixed top-20 right-4 bg-yellow-900/90 border border-yellow-700 text-yellow-100 px-6 py-4 rounded-lg shadow-lg animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-yellow-800 rounded-full flex items-center justify-center text-xl">🔒</div>
+          <div>
+            <p className="font-medium">Deal Locked!</p>
+            <p className="text-sm text-yellow-200">{data.buyerAgent.name} → {data.sellerAgent.name} ({formatPrice(data.price)})</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const data = notification.data as DealCompletedData;
+  return (
+    <div className="fixed top-20 right-4 bg-green-900/90 border border-green-700 text-green-100 px-6 py-4 rounded-lg shadow-lg animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-green-800 rounded-full flex items-center justify-center text-xl">✅</div>
+        <div>
+          <p className="font-medium">Deal Completed!</p>
+          <p className="text-sm text-green-200">{data.nft.name} sold for {formatPrice(data.price)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Spawn Agent Modal Component (same as before, keeping it here for completeness)
 interface SpawnAgentModalProps {
   room: RoomDetail;
   userNfts: Nft[];
