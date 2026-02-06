@@ -14,6 +14,45 @@ Started: Thu Feb  5 03:51:30 +07 2026
 - Performance optimization: WebSocket batching uses WS_BATCH_INTERVAL_MS (100ms default) and WS_MAX_BATCH_SIZE (50)
 - Redis pipeline batching: Use `batchUpdateFloorPrices` and `batchUpdateBids` for bulk Redis operations
 - Prisma dynamic includes: Use `include: any` with conditional property selection for selective loading
+- Documentation stored in `docs/` directory with separate files for each major topic
+- Swagger API docs available at `/api` endpoint when backend is running
+---
+
+## 2026-02-06 23:45 - US-032: Documentation
+- What was implemented:
+  * README.md with complete project overview, architecture diagram, and quick start guide
+  * docs/ARCHITECTURE.md with detailed system architecture, component diagrams, and data flow
+  * docs/DATABASE_SCHEMA.md with ERD diagram, table definitions, and relationship documentation
+  * docs/WEBSOCKET_EVENTS.md with complete WebSocket event reference and examples
+  * docs/TROUBLESHOOTING.md with solutions to common issues across all components
+  * docs/DEPLOYMENT.md already existed (verified)
+  * Swagger API documentation already configured in main.ts (verified)
+  * All documentation includes code examples and best practices
+
+- Files changed:
+  * README.md (created comprehensive project documentation)
+  * docs/ARCHITECTURE.md (created detailed architecture documentation)
+  * docs/DATABASE_SCHEMA.md (created database schema documentation)
+  * docs/WEBSOCKET_EVENTS.md (created WebSocket event reference)
+  * docs/TROUBLESHOOTING.md (created troubleshooting guide)
+  * scripts/ralph/prd.json (marked US-032 as passes: true)
+  * scripts/ralph/progress.txt (added this entry)
+
+- **Learnings for future iterations:**
+  * ASCII art diagrams in markdown work well for high-level architecture
+  * Keep README focused on getting started, link to docs/ for deep dives
+  * Database schema docs should include both ERD and detailed table definitions
+  * WebSocket events need both reference docs and integration examples
+  * Troubleshooting guide organized by component makes finding solutions faster
+  * Include both quick fixes and root cause explanations for each issue
+  * Swagger auto-generated from decorators (@ApiTags, @ApiOperation) requires minimal manual work
+  * Type checking both backend and frontend ensures code quality
+  * Documentation files should be version-controlled alongside code
+  * Cross-link related docs (e.g., README → ARCHITECTURE → DATABASE_SCHEMA)
+  * Include actual code examples in docs, not just descriptions
+  * Project structure overview helps new developers navigate quickly
+  * Environment variable documentation in .env.example is critical for setup
+
 ---
 
 ## 2026-02-06 23:30 - US-029: Performance Optimization
