@@ -801,6 +801,54 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * useAuthStore provides isAuthenticated and user state for auth-gated features
 ---
 
+## 2026-02-06 18:00 - US-019
+- What was implemented:
+  * Live chat window showing all agent messages with timestamps
+  * Agent sidebar listing active buyers and sellers with status indicators
+  * Market stats panel: floor price, top bid, active buyers/sellers count
+  * Real-time message updates via WebSocket using useWebSocket hook
+  * Auto-scroll to latest messages with scroll position detection
+  * "Scroll to latest" button appears when user scrolls up from bottom
+  * Agent avatars and names displayed with messages
+  * Price mentions highlighted in green within messages using regex
+  * Deal notifications: locked (yellow) → completed (green) states with auto-dismiss after 5 seconds
+  * Agent status indicators: active (green), negotiating (blue), deal_locked (yellow), completed (gray)
+  * Loading states for initial data with spinner
+  * Empty state for messages with friendly placeholder
+  * ChatMessage component with avatar, name, timestamp, highlighted prices, intent badges
+  * AgentCard component with role icon (💰 buyer / 🎨 seller) and status badge
+  * DealNotification component with animated pulse effect
+  * formatTime utility for relative timestamps (Just now, Xm ago, Xh ago, date)
+  * Room stats update in real-time via WebSocket room_stats event
+  * Agents list updates via agent_joined and agent_left events
+  * Messages update via agent_message event with price extraction
+  * Deal notifications via deal_locked and deal_completed events
+  * Layout uses CSS Grid: 3 columns for chat, 1 column for agent sidebar
+  * All TypeScript type checks passing
+
+- Files changed:
+  * frontend/app/rooms/[id]/page.tsx (modified - enhanced with real-time UI)
+
+- **Learnings for future iterations:**
+  * useWebSocket hook is already implemented with all necessary event handlers
+  * WebSocket events: room_stats, agent_joined, agent_message, deal_locked, deal_completed, agent_left
+  * Auto-scroll detection uses scroll position calculation: scrollHeight - scrollTop - clientHeight < 100
+  * Price mention extraction uses regex /\d+(?:\.\d{1,2})?/ to find dollar amounts in messages
+  * dangerouslySetInnerHTML is acceptable for static price highlighting (no user input)
+  * Relative time formatting: <1min = "Just now", <60min = "Xm ago", <24h = "Xh ago", else date
+  * Deal notifications should auto-dismiss after 5 seconds with setTimeout
+  * Status badge colors map: active=green, negotiating=blue, deal_locked=yellow, completed=gray
+  * Chat messages use agent.id + Date.now() for unique keys
+  * Agent list deduplication: check if agent exists before adding on agent_joined
+  * Empty states should have icons and helpful description text
+  * Toast notifications use animate-pulse for attention-grabbing effect
+  * Grid layout lg:grid-cols-4 with lg:col-span-3 for chat and lg:col-span-1 for sidebar
+  * WebSocket callbacks must be memoized or defined outside component to avoid re-renders
+  * Agent avatar fallback to '🤖' when null or undefined
+  * formatPrice function uses Intl.NumberFormat for currency formatting
+  * Toast position: fixed top-20 right-4 for notifications, fixed bottom-4 right-4 for success messages
+---
+
 ## 2026-02-06 16:30 - US-017
 - What was implemented:
   * Created rooms API client (frontend/lib/api/rooms.ts) with getRooms, getRoom, getRoomStats functions
@@ -837,4 +885,41 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * WebSocket hooks should handle cleanup (leave_room, disconnect) in useEffect return function
   * Room detail route pattern: /rooms/[roomId] (will be implemented in US-019)
   * Real-time stats updates infrastructure is in place (useWebSocket) but currently not active on list view for MVP
+---
+
+## 2026-02-06 14:20 - US-019
+- What was implemented:
+  * Real-time trading room UI with live chat window showing agent messages with timestamps
+  * Agent sidebar listing active buyers and sellers with status indicators
+  * Market stats panel: floor price, top bid, active buyers/sellers count
+  * WebSocket integration for real-time message and stats updates
+  * Auto-scroll to latest messages with manual override button
+  * Agent avatars and names displayed with messages
+  * Price mention highlighting in messages (green color)
+  * Deal notifications for locked and completed states
+  * Agent status indicators (active, negotiating, deal_locked, completed)
+  * Loading states for initial data fetch
+  * ChatMessage component with timestamp formatting and price highlighting
+  * AgentCard component with role badges and status indicators
+  * DealNotification component for deal events with animations
+  * All TypeScript type checks passing
+
+- Files changed:
+  * frontend/app/rooms/[id]/page.tsx (modified - added real-time trading UI)
+  * scripts/ralph/prd.json (modified - set US-019 passes to true)
+
+- **Learnings for future iterations:**
+  * Real-time chat requires careful scroll management - use scroll position detection to enable/disable auto-scroll
+  * Price highlighting in messages uses regex pattern matching with dangerouslySetInnerHTML for rendering
+  * WebSocket callbacks should update React state immutably for proper re-renders
+  * Agent status tracking requires local state since WebSocket events only notify about changes
+  * Deal notifications should auto-dismiss after a timeout (5 seconds) to avoid UI clutter
+  * Chat message IDs should be unique: use agentId + timestamp combination
+  * Agent sidebar should show role (buyer/seller) with emoji icons for quick identification
+  * Status indicators use color-coded dots: green (active), blue (negotiating), yellow (in deal), gray (done)
+  * Time formatting should be relative: "Just now", "5m ago", "2h ago" for better UX
+  * Empty states should be friendly with SVG icons and helpful messages
+  * Market stats should fallback to room data when WebSocket data isn't available yet
+  * Layout uses grid: 3 columns for chat, 1 column for agent sidebar on large screens
+  * Chat window height should be fixed (500px) with overflow-y-auto for scrolling
 ---
