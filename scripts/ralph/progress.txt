@@ -1171,3 +1171,109 @@ Started: Thu Feb  5 03:51:30 +07 2026
   - Stack traces are included automatically via winston.format.errors({ stack: true })
   - UUID v4 (uuid.v4()) is sufficient for request ID generation - no need for ULID or nanoid
 ---
+
+## [2026-02-06] - US-022: Swarm Mode Implementation
+- What was implemented:
+  * Complete swarm mode implementation with mock wallet generation for testnet safety
+  * Mock NFT assignment from room collection for seller agents
+  * Four preset configurations: small_test (5 agents: 3 buyers, 2 sellers), balanced_market (10: 5/5), high_competition (20: 12/8), buyers_market (20: 15/5)
+  * Full agent spawning with random attributes: name, avatar (10 emoji options), strategy (5 types), personality (4 types)
+  * Random price generation with role-appropriate ranges (sellers ask higher, buyers bid lower)
+  * Mock user creation in database for each swarm agent wallet
+  * Swarm control endpoints: PATCH /swarms/:id with action parameter (pause, resume, stop)
+  * Automatic swarm monitoring with 30-second interval for stats updates
+  * Real-time WebSocket broadcasts: swarm_status_update, swarm_stats_update, agent_joined, agent_left
+  * Swarm cleanup on stop: Redis floor/bid removal + agent deletion from database
+  * Analytics export endpoint: GET /swarms/:id/analytics returns JSON with full swarm data, deals, and metrics
+  * Strategy performance tracking in analytics (deals per strategy)
+  * Success rate and average negotiation time calculations
+  * Typecheck passes
+
+- Files changed:
+  * backend/src/swarms/swarms.module.ts (modified - imported AgentsModule, WebsocketModule, RedisModule)
+  * backend/src/swarms/swarms.service.ts (completely rewritten - 627 lines with full swarm logic)
+  * backend/src/swarms/swarms.controller.ts (modified - added exportAnalytics endpoint, changed action parameter)
+  * backend/src/websocket/websocket.gateway.ts (modified - added generic broadcastMessage method)
+  * scripts/ralph/prd.json (modified - set US-022 passes to true)
+
+- **Learnings for future iterations:**
+  - Swarm agents need mock users created in database (walletAddress + nonce) to satisfy foreign key constraint
+  - Mock wallet generation uses random 40-character hex string with 0x prefix
+  - Agent name generation: [Adjective][Role][Number] (e.g., SwiftTrader1, CalmNegotiator2)
+  - Avatar array provides variety: ['🤖', '🦊', '🐼', '🦄', '🐲', '👻', '👽', '🤡', '💀', '🎭']
+  - Price ranges differ by role: sellers (min 80%, max 150% of base), buyers (min 50%, max 130% of base)
+  - Swarm monitoring uses setInterval stored in Map<string, NodeJS.Timeout> for tracking multiple active swarms
+  - Monitoring interval 30 seconds updates dealsCompleted count and broadcasts to room
+  - Cleanup on stop: removeAgentFromFloor/removeAgentFromBids for Redis, deleteMany for database agents
+  - Analytics export uses Content-Type: application/json and Content-Disposition attachment header for download
+  - Strategy performance is object mapping strategy name to {deals: number, avgPrice: number}
+  - Success rate calculation: (totalDeals / totalAgents) * 100
+  - Average negotiation time: (completedAt - lockedAt) mean across all deals in seconds
+  - WebSocket events for swarms: swarm_status_update, swarm_stats_update (custom types use generic broadcastMessage)
+  - Swarm status flow: running → paused (on pause) → running (on resume) → completed (on stop)
+  - GET /swarms/:id returns agents array with full details including NFT and status
+  - Export analytics includes: swarm metadata, agents list, deals list, calculated metrics, export timestamp
+  - Mock NFTs come from room collection via Nft.findMany({ where: { collection: room.collection } })
+  - forwardRef required in SwarmsService for AgentsService and WebsocketGateway to avoid circular dependency
+  - RedisModule must be imported in SwarmsModule for RedisService injection
+---
+
+## 2026-02-06 20:00 - US-030
+- What was implemented:
+  * Created Dockerfile for NestJS backend with multi-stage build, non-root user, and dumb-init for signal handling
+  * Created Dockerfile for Next.js frontend with multi-stage build and optimized production image
+  * Created Dockerfile for Rust services with Alpine-based image and health check
+  * Created docker-compose.prod.yml with production-ready configuration:
+    - PostgreSQL with health checks and logging configuration
+    - Redis with AOF persistence, RDB snapshots, and memory limits
+    - All services with health checks, restart policies, and log rotation
+    - Proper service dependencies and network configuration
+  * Created .env.production.example with comprehensive production environment variables template
+  * Created scripts/migrate.sh for production database migrations with environment loading
+  * Verified health check endpoints already exist in backend and Rust service
+  * Added graceful shutdown handling to backend main.ts with SIGTERM/SIGINT handlers and 30-second timeout
+  * Created comprehensive deployment documentation (docs/DEPLOYMENT.md) covering:
+    - Prerequisites and server requirements
+    - Environment configuration and security checklist
+    - Step-by-step deployment instructions
+    - nginx reverse proxy configuration
+    - Health checks and monitoring
+    - Rolling updates procedures
+    - Troubleshooting guide
+    - Scaling considerations
+    - Backup and recovery procedures
+    - Security hardening checklist
+    - Performance tuning tips
+  * All typechecks pass (backend, frontend, Rust)
+
+- Files changed:
+  * backend/Dockerfile (created - multi-stage Dockerfile)
+  * frontend/Dockerfile (created - multi-stage Dockerfile)
+  * rust-services/Dockerfile (created - Alpine-based Dockerfile)
+  * docker-compose.prod.yml (created - production compose file)
+  * .env.production.example (created - production env template)
+  * scripts/migrate.sh (created - migration script)
+  * backend/src/main.ts (modified - added graceful shutdown)
+  * docs/DEPLOYMENT.md (created - deployment documentation)
+  * scripts/ralph/prd.json (modified - set US-030 passes to true)
+
+- **Learnings for future iterations:**
+  * Multi-stage Docker builds reduce final image size by excluding build dependencies
+  * dumb-init is essential for proper signal handling in containers (handles zombie processes)
+  * Non-root users (nodejs, nextjs, rustuser) improve security in production containers
+  * Docker Compose health checks should have start_period to allow services to initialize
+  * Redis persistence config: AOF with everysec for durability, RDB for snapshots, maxmemory with LRU eviction
+  * Log rotation prevents disk exhaustion: max-size + max-file in Docker logging config
+  * Graceful shutdown must handle SIGTERM (Docker stop) and SIGINT (Ctrl+C), with timeout for force kill
+  * NestJS app.close() properly closes connections, queues, and allows clean shutdown
+  * Environment variables in docker-compose use ${VAR:-default} syntax for defaults
+  * Service dependencies should use condition: service_healthy for proper startup ordering
+  * Health check endpoints should be lightweight (avoid DB queries) to prevent cascading failures
+  * Docker networks: All services in same network can communicate by service name
+  * Volume management: Use named volumes for data persistence (postgres_data, redis_data)
+  * Restart policy: unless-stopped ensures services restart on failure but not on manual stop
+  * Production env files should never be committed - use .example files as templates
+  * nginx reverse proxy needed for SSL termination and WebSocket support (X-Forwarded-* headers)
+  * Migration scripts should load environment variables before running Prisma commands
+  * Typecheck passing includes TypeScript compilation (no type errors) - Rust warnings are acceptable
+  * Cargo.toml location matters - must run cargo commands from directory containing it

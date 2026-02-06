@@ -127,5 +127,35 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     logger.log(`Swagger documentation: http://localhost:${port}/api`);
   }
+
+  // Graceful shutdown handling
+  const gracefulShutdown = (signal: string) => {
+    logger.log(`Received ${signal}, starting graceful shutdown...`);
+
+    // Set a timeout for force shutdown (30 seconds)
+    const forceShutdownTimeout = setTimeout(() => {
+      logger.error(`Forced shutdown after 30 seconds timeout`);
+      process.exit(1);
+    }, 30000);
+
+    // Close NestJS application
+    app.close()
+      .then(() => {
+        logger.log('NestJS application closed successfully');
+        clearTimeout(forceShutdownTimeout);
+        process.exit(0);
+      })
+      .catch((error) => {
+        logger.error('Error during application shutdown:', error);
+        clearTimeout(forceShutdownTimeout);
+        process.exit(1);
+      });
+  };
+
+  // Listen for termination signals
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  logger.log('Graceful shutdown handlers registered');
 }
 bootstrap();
