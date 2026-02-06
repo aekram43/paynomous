@@ -752,3 +752,41 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * CORS_ALLOWED_ORIGINS should be comma-separated without spaces for proper parsing
   * Production vs development environment differences should be handled via NODE_ENV variable
 ---
+
+## 2026-02-06 16:30 - US-017
+- What was implemented:
+  * Created rooms API client (frontend/lib/api/rooms.ts) with getRooms, getRoom, getRoomStats functions
+  * Created useWebSocket hook (frontend/lib/hooks/useWebSocket.ts) for real-time room stats updates
+  * Built room list page (frontend/app/rooms/page.tsx) with room cards displaying collection, active agents, floor price, top bid
+  * Implemented search functionality for room names and collections
+  * Implemented collection filter dropdown with dynamic collection list from rooms
+  * Added loading states with spinner during data fetching
+  * Added empty state when no rooms match filters
+  * Added error state with retry button for failed requests
+  * Room cards have hover effects and navigate to room detail page on click
+  * Active rooms filter applied by default (status: 'active')
+  * All TypeScript type checks passing for both frontend and backend
+
+- Files changed:
+  * frontend/lib/api/rooms.ts (created - rooms API client)
+  * frontend/lib/hooks/useWebSocket.ts (created - WebSocket hook with typed events)
+  * frontend/app/rooms/page.tsx (created - room list page with filtering)
+  * scripts/ralph/prd.json (modified - set US-017 passes to true)
+
+- **Learnings for future iterations:**
+  * Frontend API clients should use apiClient from auth.ts to inherit auth interceptors (token refresh)
+  * useWebSocket hook handles connection lifecycle, room join/leave, and typed event callbacks
+  * Socket.io client options: auth token, transports array, and reconnection should be configured
+  * Room stats filtering uses local state for instant UI feedback without re-fetching
+  * Collection filter dynamically builds options from available rooms data
+  * Search filters both room name and collection fields for better UX
+  * Loading, error, and empty states should all be handled for robust UX
+  * Price formatting uses Intl.NumberFormat with USD currency for consistent display
+  * Room cards use hover effects (border-color, bg-color) to indicate interactivity
+  * Group hover in Tailwind (group-hover:*) enables parent-hovered child styling
+  * Active status shown with animate-pulse green dot for visual activity indication
+  * Next.js App Router pages use 'use client' directive when using hooks (useState, useEffect, useRouter)
+  * WebSocket hooks should handle cleanup (leave_room, disconnect) in useEffect return function
+  * Room detail route pattern: /rooms/[roomId] (will be implemented in US-019)
+  * Real-time stats updates infrastructure is in place (useWebSocket) but currently not active on list view for MVP
+---
