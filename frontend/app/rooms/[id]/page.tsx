@@ -540,7 +540,7 @@ function SpawnAgentModal({ room, userNfts, onClose, onSpawn }: SpawnAgentModalPr
                 <button
                   key={strategy.value}
                   type="button"
-                  onClick={() => setFormData({ ...formData, strategy: strategy.value })}
+                  onClick={() => setFormData({ ...formData, strategy: strategy.value as typeof formData.strategy })}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     formData.strategy === strategy.value
                       ? 'border-purple-500 bg-purple-500/20'
@@ -564,7 +564,7 @@ function SpawnAgentModal({ room, userNfts, onClose, onSpawn }: SpawnAgentModalPr
                 <button
                   key={personality.value}
                   type="button"
-                  onClick={() => setFormData({ ...formData, personality: personality.value })}
+                  onClick={() => setFormData({ ...formData, personality: personality.value as typeof formData.personality })}
                   className={`p-3 rounded-lg border-2 text-left transition-all ${
                     formData.personality === personality.value
                       ? 'border-purple-500 bg-purple-500/20'

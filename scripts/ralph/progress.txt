@@ -753,6 +753,54 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Production vs development environment differences should be handled via NODE_ENV variable
 ---
 
+## 2026-02-06 17:00 - US-018
+- What was implemented:
+  * Created room detail page at /rooms/[id] with room stats and recent deals display
+  * Implemented comprehensive spawn agent modal with all required fields
+  * Agent name input with validation
+  * Avatar selection with 10 emoji options
+  * Role selection: buyer or seller (radio buttons with icons and descriptions)
+  * NFT selection dropdown for sellers with NFT preview card
+  * Price inputs: min acceptable, max willing, starting price
+  * Strategy selection: 5 options (competitive, patient, aggressive, conservative, sniper) with descriptions
+  * Personality selection: 4 options (formal, casual, professional, aggressive) with descriptions
+  * Comprehensive form validation with error messages
+  * Loading state during agent creation with spinner
+  * Success confirmation toast notification after spawning
+  * Room page includes back button, stats cards, and recent deals section
+  * Created agents.ts and nfts.ts API client files
+  * Installed lucide-react for consistent iconography
+  * All TypeScript type checks passing
+
+- Files changed:
+  * frontend/app/rooms/[id]/page.tsx (created - room detail page with spawn modal)
+  * frontend/components/SpawnAgentModal.tsx (created - extracted modal component, later integrated)
+  * frontend/app/rooms/page.tsx (modified - added Plus icon import for future use)
+  * frontend/lib/api/agents.ts (created - agent API client)
+  * frontend/lib/api/nfts.ts (created - NFT API client)
+  * frontend/package.json (modified - added lucide-react dependency)
+  * frontend/package-lock.json (modified - new dependencies)
+  * scripts/ralph/prd.json (modified - set US-018 passes to true)
+
+- **Learnings for future iterations:**
+  * Dynamic route folders in Next.js App Router use [id] syntax and must be created with mkdir -p "frontend/app/rooms/[id]"
+  * TypeScript union types in useState must be explicitly typed or inferred from initial value
+  * Array const definitions with union types need explicit type annotation: `const ARRAYS: Array<{value: T, ...}> = [...]`
+  * lucide-react provides consistent icon set for React projects
+  * Form validation should check role-specific constraints (buyers vs sellers have different price rules)
+  * Success toasts should be fixed positioned at bottom-right for visibility
+  * Modal overlay should use bg-black/70 for 70% opacity backdrop
+  * NFT preview cards show selected NFT details to confirm user choice
+  * Avatar selection uses emoji array for MVP instead of image uploads
+  * Price inputs use relative positioning to place $ symbol as prefix
+  * Modal max-height with overflow-y-auto ensures form is scrollable on small screens
+  * TypeScript type assertions (as typeof) needed when using union types from const arrays
+  * Role-specific conditional rendering: sellers need NFT selection, buyers don't
+  * Agent spawn API endpoint is /agents/spawn with POST method
+  * Room detail API endpoint is /rooms/:id with GET method
+  * useAuthStore provides isAuthenticated and user state for auth-gated features
+---
+
 ## 2026-02-06 16:30 - US-017
 - What was implemented:
   * Created rooms API client (frontend/lib/api/rooms.ts) with getRooms, getRoom, getRoomStats functions
