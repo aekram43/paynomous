@@ -2,18 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { SpawnAgentModal } from '@/components/SpawnAgentModal';
+import { Button } from '@/components/ui/button';
 import { getRooms, type Room } from '@/lib/api/rooms';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { useWebSocket, type RoomStatsUpdate } from '@/lib/hooks/useWebSocket';
 
 export default function RoomsPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collectionFilter, setCollectionFilter] = useState<string>('all');
+  const [spawnModalOpen, setSpawnModalOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   // Fetch rooms on mount
   useEffect(() => {
@@ -61,6 +68,25 @@ export default function RoomsPage() {
   // Handle room card click
   const handleRoomClick = (roomId: string) => {
     router.push(`/rooms/${roomId}`);
+  };
+
+  // Handle spawn agent click
+  const handleSpawnAgent = (e: React.MouseEvent, room: Room) => {
+    e.stopPropagation(); // Prevent card click
+    if (!isAuthenticated) {
+      // TODO: Show login prompt or redirect to connect wallet
+      alert('Please connect your wallet first');
+      return;
+    }
+    setSelectedRoom(room);
+    setSpawnModalOpen(true);
+  };
+
+  // Handle agent spawned successfully
+  const handleAgentSpawned = () => {
+    // Optionally refresh rooms or show success message
+    setSpawnModalOpen(false);
+    setSelectedRoom(null);
   };
 
   return (
@@ -146,11 +172,26 @@ export default function RoomsPage() {
                 key={room.id}
                 room={room}
                 onClick={() => handleRoomClick(room.id)}
+                onSpawnAgent={(e) => handleSpawnAgent(e, room)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Spawn Agent Modal */}
+      {selectedRoom && (
+        <SpawnAgentModal
+          isOpen={spawnModalOpen}
+          onClose={() => {
+            setSpawnModalOpen(false);
+            setSelectedRoom(null);
+          }}
+          roomId={selectedRoom.id}
+          roomCollection={selectedRoom.collection}
+          onSuccess={handleAgentSpawned}
+        />
+      )}
     </div>
   );
 }
@@ -159,9 +200,10 @@ export default function RoomsPage() {
 interface RoomCardProps {
   room: Room;
   onClick: () => void;
+  onSpawnAgent: (e: React.MouseEvent) => void;
 }
 
-function RoomCard({ room, onClick }: RoomCardProps) {
+function RoomCard({ room, onClick, onSpawnAgent }: RoomCardProps) {
   const [liveStats, setLiveStats] = useState<Partial<Room>>({});
 
   // Use WebSocket for real-time updates (optional for list view, primarily for detail view)
@@ -173,10 +215,17 @@ function RoomCard({ room, onClick }: RoomCardProps) {
       className="group bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-purple-500/50 hover:bg-gray-900 transition-all cursor-pointer"
     >
       {/* Collection Badge */}
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <span className="inline-block px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-xs font-medium text-purple-400">
           {room.collection}
         </span>
+        <button
+          onClick={onSpawnAgent}
+          className="p-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-all"
+          title="Spawn Agent"
+        >
+          <Plus className="w-4 h-4 text-purple-400" />
+        </button>
       </div>
 
       {/* Room Name */}
