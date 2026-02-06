@@ -215,6 +215,50 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // Helper methods for AgentDecisionService
 
+  /**
+   * Batch update floor prices for multiple agents using Redis pipeline
+   * Much more efficient than individual updateFloorPrice calls
+   */
+  async batchUpdateFloorPrices(roomId: string, updates: Array<{ agentId: string; price: number }>): Promise<void> {
+    try {
+      if (updates.length === 0) return;
+
+      const key = `room:${roomId}:floor`;
+      const pipeline = this.client.pipeline();
+
+      for (const update of updates) {
+        pipeline.zadd(key, update.price, update.agentId);
+      }
+
+      await pipeline.exec();
+      this.logger.debug(`Batch updated ${updates.length} floor prices for room ${roomId}`);
+    } catch (error) {
+      this.logger.error(`Failed to batch update floor prices for room ${roomId}:`, error);
+    }
+  }
+
+  /**
+   * Batch update bids for multiple agents using Redis pipeline
+   * Much more efficient than individual updateTopBid calls
+   */
+  async batchUpdateBids(roomId: string, updates: Array<{ agentId: string; bid: number }>): Promise<void> {
+    try {
+      if (updates.length === 0) return;
+
+      const key = `room:${roomId}:bids`;
+      const pipeline = this.client.pipeline();
+
+      for (const update of updates) {
+        pipeline.zadd(key, update.bid, update.agentId);
+      }
+
+      await pipeline.exec();
+      this.logger.debug(`Batch updated ${updates.length} bids for room ${roomId}`);
+    } catch (error) {
+      this.logger.error(`Failed to batch update bids for room ${roomId}:`, error);
+    }
+  }
+
   async getFloorPrice(roomId: string): Promise<number | null> {
     try {
       const key = `room:${roomId}:floor`;

@@ -76,12 +76,12 @@ export class GlmProcessor extends WorkerHost {
         },
       });
 
-      // Broadcast agent message to room via WebSocket
-      this.websocketGateway.broadcastAgentMessage(job.data.roomContext.roomId, {
+      // Broadcast agent message to room via WebSocket (using batched method for performance)
+      this.websocketGateway.broadcastAgentMessageBatched(job.data.roomContext.roomId, {
         agent: {
           id: job.data.agent.id,
           name: job.data.agent.name,
-          avatar: '🤖', // Default avatar, should come from agent data
+          avatar: job.data.agent.avatar || '🤖',
           role: job.data.agent.role,
         },
         message: response.message,

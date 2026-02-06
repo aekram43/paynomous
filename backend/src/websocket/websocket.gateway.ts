@@ -29,6 +29,25 @@ interface LeaveRoomPayload {
   roomId: string;
 }
 
+// Message batching interface
+interface QueuedMessage {
+  roomId: string;
+  event: string;
+  data: any;
+  timestamp: string;
+}
+
+// Message batch interface
+interface MessageBatch {
+  roomId: string;
+  messages: Array<{
+    event: string;
+    data: any;
+    timestamp: string;
+  }>;
+  batchTimestamp: string;
+}
+
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ALLOWED_ORIGINS
@@ -46,6 +65,27 @@ export class WebsocketGateway
 
   private logger = new Logger('WebsocketGateway');
   private connectedClients = new Map<string, AuthenticatedSocket>();
+
+  // Message batching state
+  private messageQueue: Map<string, QueuedMessage[]> = new Map();
+  private batchIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private readonly BATCH_INTERVAL_MS = parseInt(process.env.WS_BATCH_INTERVAL_MS || '100'); // 100ms default
+  private readonly MAX_BATCH_SIZE = parseInt(process.env.WS_MAX_BATCH_SIZE || '50'); // Max 50 messages per batch
+
+  // Events that should be batched (high-frequency events)
+  private readonly BATCHABLE_EVENTS = new Set([
+    'agent_message',
+    'room_stats',
+  ]);
+
+  // Events that should always be sent immediately (critical events)
+  private readonly IMMEDIATE_EVENTS = new Set([
+    'deal_locked',
+    'deal_verifying',
+    'deal_completed',
+    'agent_joined',
+    'agent_left',
+  ]);
 
   constructor(
     private jwtService: JwtService,
@@ -248,5 +288,143 @@ export class WebsocketGateway
   broadcastMessage(roomId: string, eventData: any) {
     this.server.to(roomId).emit(eventData.type, eventData);
     this.logger.log(`Broadcast ${eventData.type} to room ${roomId}`);
+  }
+
+  // ============ MESSAGE BATCHING SYSTEM ============
+
+  /**
+   * Enqueue a message for batched delivery
+   * Critical events (deal_locked, deal_verifying, etc.) are sent immediately
+   * High-frequency events (agent_message, room_stats) are batched
+   */
+  private enqueueMessage(roomId: string, event: string, data: any): void {
+    const timestamp = new Date().toISOString();
+
+    // Send critical events immediately
+    if (this.IMMEDIATE_EVENTS.has(event)) {
+      this.server.to(roomId).emit(event, {
+        roomId,
+        ...data,
+        timestamp,
+      });
+      return;
+    }
+
+    // Batch high-frequency events
+    if (this.BATCHABLE_EVENTS.has(event)) {
+      const queue = this.messageQueue.get(roomId) || [];
+      queue.push({ roomId, event, data, timestamp });
+
+      // Check if we've reached max batch size
+      if (queue.length >= this.MAX_BATCH_SIZE) {
+        this.flushQueue(roomId);
+      } else {
+        this.messageQueue.set(roomId, queue);
+        this.scheduleBatch(roomId);
+      }
+    } else {
+      // Other events sent immediately
+      this.server.to(roomId).emit(event, {
+        roomId,
+        ...data,
+        timestamp,
+      });
+    }
+  }
+
+  /**
+   * Schedule a batch to be sent after the batch interval
+   */
+  private scheduleBatch(roomId: string): void {
+    // Don't schedule if already scheduled
+    if (this.batchIntervals.has(roomId)) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      this.flushQueue(roomId);
+    }, this.BATCH_INTERVAL_MS);
+
+    this.batchIntervals.set(roomId, timeout);
+  }
+
+  /**
+   * Flush all queued messages for a room as a batch
+   */
+  private flushQueue(roomId: string): void {
+    const queue = this.messageQueue.get(roomId);
+    if (!queue || queue.length === 0) {
+      return;
+    }
+
+    // Create batch
+    const batch: MessageBatch = {
+      roomId,
+      messages: queue.map((msg) => ({
+        event: msg.event,
+        data: msg.data,
+        timestamp: msg.timestamp,
+      })),
+      batchTimestamp: new Date().toISOString(),
+    };
+
+    // Send batch
+    this.server.to(roomId).emit('message_batch', batch);
+
+    // Clear queue and interval
+    this.messageQueue.delete(roomId);
+    const interval = this.batchIntervals.get(roomId);
+    if (interval) {
+      clearTimeout(interval);
+      this.batchIntervals.delete(roomId);
+    }
+
+    this.logger.debug(
+      `Sent batch of ${batch.messages.length} messages to room ${roomId}`,
+    );
+  }
+
+  /**
+   * Batched version of broadcastAgentMessage
+   */
+  broadcastAgentMessageBatched(roomId: string, messageData: any): void {
+    this.enqueueMessage(roomId, 'agent_message', { message: messageData });
+  }
+
+  /**
+   * Batched version of broadcastRoomStats
+   */
+  broadcastRoomStatsBatched(roomId: string, stats: any): void {
+    this.enqueueMessage(roomId, 'room_stats', { stats });
+  }
+
+  /**
+   * Force flush all queued messages (called on room disconnect, etc.)
+   */
+  flushRoomQueue(roomId: string): void {
+    this.flushQueue(roomId);
+  }
+
+  /**
+   * Get current queue statistics for monitoring
+   */
+  getQueueStats(): { [roomId: string]: number } {
+    const stats: { [roomId: string]: number } = {};
+    for (const [roomId, queue] of this.messageQueue.entries()) {
+      stats[roomId] = queue.length;
+    }
+    return stats;
+  }
+
+  /**
+   * Clean up room-specific batching resources
+   */
+  cleanupRoomResources(roomId: string): void {
+    const interval = this.batchIntervals.get(roomId);
+    if (interval) {
+      clearTimeout(interval);
+      this.batchIntervals.delete(roomId);
+    }
+    this.messageQueue.delete(roomId);
   }
 }

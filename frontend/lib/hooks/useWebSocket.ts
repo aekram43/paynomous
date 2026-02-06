@@ -54,6 +54,17 @@ export interface AgentLeftData {
   reason: string;
 }
 
+// Message batch interface for handling batched WebSocket messages
+export interface MessageBatch {
+  roomId: string;
+  messages: Array<{
+    event: string;
+    data: any;
+    timestamp: string;
+  }>;
+  batchTimestamp: string;
+}
+
 interface WebSocketCallbacks {
   onRoomStats?: (data: RoomStatsUpdate) => void;
   onAgentJoined?: (data: AgentJoinedData) => void;
@@ -63,6 +74,7 @@ interface WebSocketCallbacks {
   onDealCompleted?: (data: DealCompletedData) => void;
   onAgentLeft?: (data: AgentLeftData) => void;
   onError?: (data: { message: string }) => void;
+  onMessageBatch?: (batch: MessageBatch) => void; // New callback for message batches
 }
 
 export function useWebSocket(roomId: string | null, callbacks: WebSocketCallbacks) {
@@ -134,6 +146,39 @@ export function useWebSocket(roomId: string | null, callbacks: WebSocketCallback
     // Error
     socket.on('error', (data: { message: string }) => {
       callbacks.onError?.(data);
+    });
+
+    // Message batch - handle batched messages for performance
+    socket.on('message_batch', (batch: MessageBatch) => {
+      // Call the batch callback if provided
+      callbacks.onMessageBatch?.(batch);
+
+      // Also process individual messages in the batch
+      for (const msg of batch.messages) {
+        switch (msg.event) {
+          case 'agent_message':
+            callbacks.onAgentMessage?.(msg.data);
+            break;
+          case 'room_stats':
+            callbacks.onRoomStats?.(msg.data);
+            break;
+          case 'agent_joined':
+            callbacks.onAgentJoined?.(msg.data);
+            break;
+          case 'deal_locked':
+            callbacks.onDealLocked?.(msg.data);
+            break;
+          case 'deal_verifying':
+            callbacks.onDealVerifying?.(msg.data);
+            break;
+          case 'deal_completed':
+            callbacks.onDealCompleted?.(msg.data);
+            break;
+          case 'agent_left':
+            callbacks.onAgentLeft?.(msg.data);
+            break;
+        }
+      }
     });
 
     return () => {

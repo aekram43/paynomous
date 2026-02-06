@@ -11,6 +11,7 @@ export interface Agent {
   minPrice?: number;
   maxPrice?: number;
   startingPrice: number;
+  avatar?: string; // Optional avatar for agent display
 }
 
 export interface RoomContext {

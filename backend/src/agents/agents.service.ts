@@ -195,21 +195,40 @@ export class AgentsService {
     return { success: true, message: 'Agent deleted successfully' };
   }
 
-  async findMyAgents(userId: string) {
+  async findMyAgents(userId: string, includeRelations: { room?: boolean; nft?: boolean } = { room: true, nft: true }) {
+    // Build include object dynamically based on request
+    const include: any = {};
+    if (includeRelations.room) {
+      include.room = {
+        select: {
+          id: true,
+          name: true,
+          collection: true,
+        },
+      };
+    }
+    if (includeRelations.nft) {
+      include.nft = {
+        select: {
+          id: true,
+          name: true,
+          collection: true,
+          imageUrl: true,
+        },
+      };
+    }
+
     const agents = await this.prisma.agent.findMany({
       where: {
         userId: userId,
       },
-      include: {
-        room: true,
-        nft: true,
-      },
+      include: Object.keys(include).length > 0 ? include : undefined,
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    return agents.map((agent) => ({
+    return agents.map((agent: any) => ({
       id: agent.id,
       name: agent.name,
       avatar: agent.avatar,
@@ -222,20 +241,18 @@ export class AgentsService {
       startingPrice: agent.startingPrice,
       messagesSent: agent.messagesSent,
       roomId: agent.roomId,
-      room: {
+      room: includeRelations.room && agent.room ? {
         id: agent.room.id,
         name: agent.room.name,
         collection: agent.room.collection,
-      },
+      } : undefined,
       nftId: agent.nftId,
-      nft: agent.nft
-        ? {
-            id: agent.nft.id,
-            name: agent.nft.name,
-            collection: agent.nft.collection,
-            imageUrl: agent.nft.imageUrl,
-          }
-        : null,
+      nft: includeRelations.nft && agent.nft ? {
+        id: agent.nft.id,
+        name: agent.nft.name,
+        collection: agent.nft.collection,
+        imageUrl: agent.nft.imageUrl,
+      } : undefined,
       dealId: agent.dealId,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,

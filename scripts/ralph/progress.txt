@@ -11,6 +11,53 @@ Started: Thu Feb  5 03:51:30 +07 2026
 - Connection pooling configured via DATABASE_URL query params: connection_limit=50&pool_timeout=10
 - Run migrations with: `cd backend && npx prisma migrate dev --name <name>`
 - Run seed script with: `cd backend && npx prisma db seed`
+- Performance optimization: WebSocket batching uses WS_BATCH_INTERVAL_MS (100ms default) and WS_MAX_BATCH_SIZE (50)
+- Redis pipeline batching: Use `batchUpdateFloorPrices` and `batchUpdateBids` for bulk Redis operations
+- Prisma dynamic includes: Use `include: any` with conditional property selection for selective loading
+---
+
+## 2026-02-06 23:30 - US-029: Performance Optimization
+- What was implemented:
+  * WebSocket message batching system implemented in websocket.gateway.ts:
+    - Queued messages with configurable batch interval (100ms default)
+    - Automatic flushing when reaching max batch size (50 messages)
+    - Separate handling for critical events (immediate) vs high-frequency events (batched)
+    - Frontend hook updated to handle message_batch events
+  * Database query optimizations:
+    - Added batch Redis operations: `batchUpdateFloorPrices`, `batchUpdateBids`
+    - Optimized SwarmsService.spawnSwarmAgents with pre-fetching and bulk Redis updates
+    - Added selective loading to AgentsService.findMyAgents with includeRelations parameter
+  * Environment variables for performance tuning:
+    - WS_BATCH_INTERVAL_MS: WebSocket batching interval (default 100ms)
+    - WS_MAX_BATCH_SIZE: Maximum messages per batch (default 50)
+  * Type fixes: Added avatar property to Agent interface in GLM service
+
+- Files changed:
+  * backend/src/websocket/websocket.gateway.ts (added batching system with 150+ new lines)
+  * backend/src/redis/redis.service.ts (added batchUpdateFloorPrices, batchUpdateBids methods)
+  * backend/src/swarms/swarms.service.ts (optimized spawnSwarmAgents with pre-fetching)
+  * backend/src/agents/agents.service.ts (added selective loading to findMyAgents)
+  * backend/src/glm/glm.service.ts (added avatar property to Agent interface)
+  * backend/src/queues/processors/glm.processor.ts (switched to broadcastAgentMessageBatched)
+  * frontend/lib/hooks/useWebSocket.ts (added MessageBatch interface and message_batch handling)
+  * .env.example (added performance optimization variables)
+  * scripts/ralph/prd.json (marked US-029 as passes: true)
+
+- **Learnings for future iterations:**
+  * WebSocket batching significantly reduces network overhead for high-frequency events (agent_message, room_stats)
+  * Critical events (deal_locked, deal_verifying, deal_completed) should always be sent immediately, not batched
+  * Redis pipelines (pipeline.exec) execute multiple commands in a single round-trip for bulk operations
+  * Prisma dynamic includes with conditional select improve query performance by only fetching needed data
+  * Pre-fetching related data (users in bulk) prevents N+1 query problems in loops
+  * Frontend message_batch event handler must process individual messages from the batch array
+  * Message batching trades latency for throughput: 100ms delay is acceptable for chat but not for deal events
+  * Type casting with `(agent: any)` helps when Prisma generates complex union types for dynamic includes
+  * Batch interval of 100ms balances real-time feel with network efficiency
+  * Max batch size of 50 prevents excessive memory usage while maintaining batching benefits
+  * Swarms with 20 agents now use 2 Redis calls instead of 20 for floor/bid initialization
+  * Monitoring queue stats via getQueueStats() helps identify bottlenecks
+  * Cleanup is important: clear intervals and delete queues when rooms close
+
 ---
 
 ## 2026-02-05 04:15 - US-001

@@ -317,6 +317,26 @@ export class SwarmsService {
     let buyerIndex = 0;
     let sellerIndex = 0;
 
+    // Collect Redis updates for batch processing
+    const floorPriceUpdates: Array<{ agentId: string; price: number }> = [];
+    const bidUpdates: Array<{ agentId: string; bid: number }> = [];
+
+    // Pre-fetch mock users to avoid duplicate queries
+    const mockUsersMap = new Map<string, any>();
+    const uniqueWallets = [...new Set(mockWallets)];
+
+    // Batch query for existing users
+    const existingUsers = await this.prisma.user.findMany({
+      where: {
+        walletAddress: { in: uniqueWallets },
+      },
+    });
+
+    // Map existing users
+    for (const user of existingUsers) {
+      mockUsersMap.set(user.walletAddress, user);
+    }
+
     for (let i = 0; i < config.totalAgents; i++) {
       const isBuyer = i < config.buyers;
       const role = isBuyer ? 'buyer' : 'seller';
@@ -341,9 +361,19 @@ export class SwarmsService {
         startingPrice = basePrice * 0.9;
       }
 
-      // Create agent directly in database (skip auth wallet ownership for swarm)
+      // Get or create mock user (using cached map)
       const mockWallet = mockWallets[i];
-      const mockUser = await this.getOrCreateMockUser(mockWallet);
+      let mockUser = mockUsersMap.get(mockWallet);
+
+      if (!mockUser) {
+        mockUser = await this.prisma.user.create({
+          data: {
+            walletAddress: mockWallet,
+            nonce: Math.random().toString(36),
+          },
+        });
+        mockUsersMap.set(mockWallet, mockUser);
+      }
 
       const agentData: any = {
         name,
@@ -370,11 +400,11 @@ export class SwarmsService {
         data: agentData,
       });
 
-      // Initialize Redis floor/bid tracking
+      // Collect Redis update for batch processing
       if (role === 'seller') {
-        await this.redisService.updateFloorPrice(roomId, agent.id, startingPrice);
+        floorPriceUpdates.push({ agentId: agent.id, price: startingPrice });
       } else {
-        await this.redisService.updateTopBid(roomId, agent.id, startingPrice);
+        bidUpdates.push({ agentId: agent.id, bid: startingPrice });
       }
 
       // Broadcast agent_joined event
@@ -398,6 +428,14 @@ export class SwarmsService {
         personality: agent.communicationStyle,
         startingPrice,
       });
+    }
+
+    // Batch Redis updates (single round-trip instead of N round-trips)
+    if (floorPriceUpdates.length > 0) {
+      await this.redisService.batchUpdateFloorPrices(roomId, floorPriceUpdates);
+    }
+    if (bidUpdates.length > 0) {
+      await this.redisService.batchUpdateBids(roomId, bidUpdates);
     }
 
     return agents;
