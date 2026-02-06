@@ -67,31 +67,50 @@ describe('AgentsService', () => {
     let testUser: any;
     let testRoom: any;
     let testNft: any;
+    let uniqueId = 0;
 
     beforeEach(async () => {
-      // Create test user
+      uniqueId++;
+
+      // Create test user with unique wallet address
       testUser = await prisma.user.create({
         data: {
-          walletAddress: '0xTestUser',
+          walletAddress: `0xTestUser${uniqueId}`,
         },
       });
 
       // Create test room
       testRoom = await prisma.room.create({
         data: {
-          name: 'Test Room',
-          collection: 'Test Collection',
+          name: `Test Room ${uniqueId}`,
+          collection: `Test Collection ${uniqueId}`,
         },
       });
 
       // Create test NFT
       testNft = await prisma.nft.create({
         data: {
-          tokenId: '123',
-          name: 'Test NFT',
-          collection: 'Test Collection',
+          tokenId: `${uniqueId}`,
+          name: `Test NFT ${uniqueId}`,
+          collection: `Test Collection ${uniqueId}`,
           imageUrl: 'https://example.com/image.png',
         },
+      });
+    });
+
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.agent.deleteMany({
+        where: { userId: testUser.id },
+      });
+      await prisma.nft.deleteMany({
+        where: { id: testNft.id },
+      });
+      await prisma.room.deleteMany({
+        where: { id: testRoom.id },
+      });
+      await prisma.user.deleteMany({
+        where: { id: testUser.id },
       });
     });
 
@@ -247,24 +266,27 @@ describe('AgentsService', () => {
     let testAgent: any;
     let testUser: any;
     let testRoom: any;
+    let uniqueId = 0;
 
     beforeEach(async () => {
+      uniqueId++;
+
       testUser = await prisma.user.create({
         data: {
-          walletAddress: '0xTestUser2',
+          walletAddress: `0xTestUserFindOne${uniqueId}`,
         },
       });
 
       testRoom = await prisma.room.create({
         data: {
-          name: 'Test Room 2',
-          collection: 'Test Collection 2',
+          name: `Test Room FindOne ${uniqueId}`,
+          collection: `Test Collection FindOne ${uniqueId}`,
         },
       });
 
       testAgent = await prisma.agent.create({
         data: {
-          name: 'Test Agent',
+          name: `Test Agent FindOne ${uniqueId}`,
           role: 'buyer',
           status: 'active',
           strategy: 'competitive',
@@ -280,12 +302,28 @@ describe('AgentsService', () => {
       });
     });
 
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.nft.deleteMany({
+        where: { collection: `Test Collection FindOne ${uniqueId}` },
+      });
+      await prisma.agent.deleteMany({
+        where: { userId: testUser.id },
+      });
+      await prisma.room.deleteMany({
+        where: { id: testRoom.id },
+      });
+      await prisma.user.deleteMany({
+        where: { id: testUser.id },
+      });
+    });
+
     it('should return agent details when found', async () => {
       const result = await service.findOne(testAgent.id);
 
       expect(result).toBeDefined();
       expect(result?.id).toBe(testAgent.id);
-      expect(result?.name).toBe('Test Agent');
+      expect(result?.name).toBe(`Test Agent FindOne ${uniqueId}`);
       expect(result?.role).toBe('buyer');
       expect(result?.status).toBe('active');
       expect(result?.strategy).toBe('competitive');
@@ -308,8 +346,8 @@ describe('AgentsService', () => {
       const testNft = await prisma.nft.create({
         data: {
           tokenId: '456',
-          name: 'Test NFT 2',
-          collection: 'Test Collection 2',
+          name: `Test NFT 2 ${uniqueId}`,
+          collection: `Test Collection 2 ${uniqueId}`,
           imageUrl: 'https://example.com/image2.png',
         },
       });
@@ -332,24 +370,27 @@ describe('AgentsService', () => {
     let testAgent: any;
     let testUser: any;
     let testRoom: any;
+    let uniqueId = 0;
 
     beforeEach(async () => {
+      uniqueId++;
+
       testUser = await prisma.user.create({
         data: {
-          walletAddress: '0xTestUser3',
+          walletAddress: `0xTestUserDelete${uniqueId}`,
         },
       });
 
       testRoom = await prisma.room.create({
         data: {
-          name: 'Test Room 3',
-          collection: 'Test Collection 3',
+          name: `Test Room Delete ${uniqueId}`,
+          collection: `Test Collection Delete ${uniqueId}`,
         },
       });
 
       testAgent = await prisma.agent.create({
         data: {
-          name: 'Test Agent',
+          name: `Test Agent Delete ${uniqueId}`,
           role: 'buyer',
           status: 'active',
           strategy: 'competitive',
@@ -362,6 +403,19 @@ describe('AgentsService', () => {
           userId: testUser.id,
           roomId: testRoom.id,
         },
+      });
+    });
+
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.agent.deleteMany({
+        where: { userId: testUser.id },
+      });
+      await prisma.user.deleteMany({
+        where: { id: testUser.id },
+      });
+      await prisma.room.deleteMany({
+        where: { id: testRoom.id },
       });
     });
 
@@ -428,13 +482,18 @@ describe('AgentsService', () => {
     it('should throw BadRequestException when user does not own the agent', async () => {
       const anotherUser = await prisma.user.create({
         data: {
-          walletAddress: '0xAnotherUser',
+          walletAddress: `0xAnotherUser${Date.now()}`,
         },
       });
 
       await expect(
         service.deleteAgent(testAgent.id, anotherUser.id),
       ).rejects.toThrow(BadRequestException);
+
+      // Clean up anotherUser
+      await prisma.user.delete({
+        where: { id: anotherUser.id },
+      });
     });
 
     it('should throw BadRequestException when agent status is locked', async () => {

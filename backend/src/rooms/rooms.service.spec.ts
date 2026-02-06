@@ -51,6 +51,19 @@ describe('RoomsService', () => {
   });
 
   describe('findAll', () => {
+    let uniqueId = 0;
+
+    beforeEach(async () => {
+      uniqueId++;
+    });
+
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.agent.deleteMany({});
+      await prisma.room.deleteMany({});
+      await prisma.user.deleteMany({});
+    });
+
     it('should return an empty array when no rooms exist', async () => {
       const result = await service.findAll();
 
@@ -60,22 +73,22 @@ describe('RoomsService', () => {
     it('should return all rooms with agent counts', async () => {
       const testUser = await prisma.user.create({
         data: {
-          walletAddress: '0xTestUser',
+          walletAddress: `0xTestUserRooms${uniqueId}`,
         },
       });
 
       const room1 = await prisma.room.create({
         data: {
-          name: 'Test Room 1',
-          collection: 'Test Collection',
+          name: `Test Room ${uniqueId}A`,
+          collection: `Test Collection ${uniqueId}`,
           status: 'active',
         },
       });
 
       const room2 = await prisma.room.create({
         data: {
-          name: 'Test Room 2',
-          collection: 'Test Collection',
+          name: `Test Room ${uniqueId}B`,
+          collection: `Test Collection ${uniqueId}`,
           status: 'waiting',
         },
       });
@@ -145,12 +158,25 @@ describe('RoomsService', () => {
       });
     });
 
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.agent.deleteMany({
+        where: { roomId: testRoom.id },
+      });
+      await prisma.room.deleteMany({
+        where: { id: testRoom.id },
+      });
+      await prisma.user.deleteMany({
+        where: { id: testUser.id },
+      });
+    });
+
     it('should return room details when found', async () => {
       const result = await service.findOne(testRoom.id);
 
       expect(result).toBeDefined();
       expect(result?.id).toBe(testRoom.id);
-      expect(result?.name).toBe('Test Room');
+      expect(result?.name).toContain('Test Room_');
       expect(result?.collection).toBe('Test Collection');
       expect(result?.status).toBe('active');
       expect(result?.activeAgentsCount).toBe(0);
@@ -191,20 +217,36 @@ describe('RoomsService', () => {
   describe('getStats', () => {
     let testRoom: any;
     let testUser: any;
+    let uniqueId = 0;
 
     beforeEach(async () => {
+      uniqueId++;
+
       testUser = await prisma.user.create({
         data: {
-          walletAddress: '0xTestUser3',
+          walletAddress: `0xTestUserStats${uniqueId}`,
         },
       });
 
       testRoom = await prisma.room.create({
         data: {
-          name: 'Test Room Stats',
-          collection: 'Test Collection',
+          name: `Test Room Stats ${uniqueId}`,
+          collection: `Test Collection Stats ${uniqueId}`,
           status: 'active',
         },
+      });
+    });
+
+    afterEach(async () => {
+      // Clean up after each test
+      await prisma.agent.deleteMany({
+        where: { roomId: testRoom.id },
+      });
+      await prisma.room.deleteMany({
+        where: { id: testRoom.id },
+      });
+      await prisma.user.deleteMany({
+        where: { id: testUser.id },
       });
     });
 
