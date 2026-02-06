@@ -967,3 +967,55 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Progress bar uses transition-all duration-300 for smooth updates
   * Stage indicators use flex-col with emoji icons and labels for clear visual hierarchy
 ---
+
+## 2026-02-06 19:00 - US-021
+- What was implemented:
+  * Added GET /agents/my endpoint to backend for fetching all agents for authenticated user
+  * Created deals.ts API client with getDeal() and getMyDeals() functions
+  * Implemented comprehensive dashboard page at /dashboard with:
+    - My Agents section showing active and completed agents with status badges
+    - Agent cards displaying: name, avatar, role, status, room, current price, messages sent, strategy
+    - Delete controls for user's own agents (only for active/negotiating status)
+    - Deal History section with deal cards showing NFT, buyer/seller, final price, timestamp, transaction hash
+    - Analytics section with: total deals, success rate, avg negotiation time, active agents, best deals, deals by status
+    - Status filtering for both agents and deals (all, active, negotiating, deal_locked, completed, failed)
+    - Tab-based navigation (My Agents, Deal History, Analytics)
+    - Empty states with helpful CTAs (Browse Rooms for agents, message for no deals)
+  * Updated Header component with dashboard button for authenticated users
+  * Dashboard accessible at /dashboard route with authentication check
+  * All typechecks pass for both backend and frontend
+
+- Files changed:
+  * backend/src/agents/agents.controller.ts (modified - added GET /agents/my endpoint)
+  * backend/src/agents/agents.service.ts (modified - added findMyAgents method)
+  * frontend/lib/api/deals.ts (created - deals API client)
+  * frontend/lib/api/agents.ts (modified - added getMyAgents function)
+  * frontend/app/dashboard/page.tsx (created - 760+ lines dashboard page)
+  * frontend/components/Header.tsx (modified - added dashboard button for authenticated users)
+
+- **Learnings for future iterations:**
+  * Agent model relations: Use include for room and nft when querying agents for dashboard display
+  * Agent status flow: active → negotiating → deal_locked → completed (or back to active if deal fails)
+  * Delete validation: Only allow deletion for agents in 'active' or 'negotiating' status (locked/completed agents cannot be deleted)
+  * Dashboard filtering: Use local state for instant UI feedback without re-fetching data
+  * Status badge pattern: Create reusable getStatusBadge function that returns span with color, icon, label
+  * Agent cards show: name, avatar (emoji), role (buyer/seller), status badge, room link, NFT name (if seller), current price, messages sent, strategy
+  * Deal cards show: status badge, date, NFT collection/token ID, price, buyer agent name/wallet, seller agent name/wallet, transaction link (if completed)
+  * Analytics calculations: success rate = (completed deals / total deals) * 100, avg negotiation time from completedAt - createdAt
+  * Tab navigation: Use activeTab state to switch between sections while maintaining scroll position
+  * Empty states should be helpful with icons and CTAs (e.g., "Browse Rooms" when no agents)
+  * useWebSocket hook requires roomId as first argument - not suitable for dashboard (no single room context)
+  * Dashboard polling: For MVP, manual refresh is acceptable; real-time updates can be added later with global WebSocket connection
+  * Analytics best deals: Sort completed deals by price descending and slice(0, 5) for top 5
+  * Status filter pattern: Select dropdown with "all" option and map of status values for filtering
+  * Price formatting uses Intl.NumberFormat for USD currency display
+  * Time formatting: milliseconds → seconds → minutes → hours for human-readable format
+  * Transaction hash truncation: Show first 10 chars only with ... for readability
+  * Block explorer link: Use NEXT_PUBLIC_BLOCK_EXPLORER_URL environment variable for flexibility
+  * Header navigation: Add dashboard button next to wallet info for authenticated users (hidden on mobile)
+  * Agent card canNavigate: Click room name to navigate to room detail page
+  * Analytics cards grid: Use grid-cols-4 for large screens, responsive down to grid-cols-1
+  * Pagination not implemented for MVP (acceptable since most users won't have hundreds of agents/deals)
+  * Date range filter not implemented for MVP (status filter is sufficient)
+  * Real-time updates for active agents: Infrastructure in place (useWebSocket imported) but requires global connection
+---
