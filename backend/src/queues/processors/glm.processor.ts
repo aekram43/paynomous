@@ -4,6 +4,7 @@ import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { GlmService, Agent, RoomContext } from '../../glm/glm.service';
 import { WebsocketGateway } from '../../websocket/websocket.gateway';
 import { PrismaClient } from '@prisma/client';
+import { RedisService } from '../../redis/redis.service';
 
 export interface GlmRequestJob {
   type: 'generate_agent_response';
@@ -20,11 +21,16 @@ export class GlmProcessor extends WorkerHost {
   private readonly logger = new Logger(GlmProcessor.name);
   private prisma: PrismaClient;
 
+  // Rate limit configuration for agent messages
+  private readonly AGENT_MESSAGE_RATE_LIMIT = parseInt(process.env.AGENT_MESSAGE_RATE_LIMIT || '10');
+  private readonly AGENT_MESSAGE_RATE_WINDOW = parseInt(process.env.AGENT_MESSAGE_RATE_WINDOW || '60'); // 1 minute
+
   constructor(
     private readonly glmService: GlmService,
     @Inject(forwardRef(() => WebsocketGateway))
     private readonly websocketGateway: WebsocketGateway,
     @InjectQueue('deal-verification') private dealVerificationQueue: Queue,
+    private readonly redisService: RedisService,
   ) {
     super();
     this.prisma = new PrismaClient();
@@ -32,6 +38,25 @@ export class GlmProcessor extends WorkerHost {
 
   async process(job: Job<GlmRequestJob>): Promise<any> {
     this.logger.log(`Processing GLM request for agent ${job.data.agent.name}`);
+
+    // Check rate limit for agent messages
+    const rateLimitKey = `agent-message:${job.data.agent.id}`;
+    const isAllowed = await this.redisService.checkRateLimit(
+      rateLimitKey,
+      this.AGENT_MESSAGE_RATE_LIMIT,
+      this.AGENT_MESSAGE_RATE_WINDOW,
+    );
+
+    if (!isAllowed) {
+      this.logger.warn(
+        `Agent ${job.data.agent.name} exceeded message rate limit. Skipping this request.`,
+      );
+      return {
+        success: false,
+        rateLimited: true,
+        message: 'Agent message rate limit exceeded',
+      };
+    }
 
     try {
       const response = await this.glmService.generateAgentResponse(

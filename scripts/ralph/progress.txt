@@ -1071,3 +1071,48 @@ Started: Thu Feb  5 03:51:30 +07 2026
   - Typecheck passes even with minor test failures - focus on compilation errors
   - 66 out of 68 unit tests passing (2 minor test isolation issues remain)
 ---
+## [2026-02-06] - US-026: Rate Limiting Implementation
+- Created comprehensive rate limiting system with decorators and middleware
+- Implemented RedisService-based rate limiting using existing incrementRateLimit/checkRateLimit methods
+- Created RateLimitMiddleware for global rate limiting
+- Created @RateLimit decorator with convenience decorators:
+  - @AgentSpawnRateLimit: 5 agents per hour per user
+  - @AgentMessageRateLimit: 10 messages per minute per agent
+  - @GlobalRateLimit: 100 requests per minute per IP
+- Applied @AgentSpawnRateLimit to POST /agents/spawn endpoint
+- Applied agent message rate limiting in GLM processor (checks before processing GLM requests)
+- Added rate limit headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After
+- Returns 429 status code with detailed error response when limit exceeded
+- All rate limits configurable via environment variables:
+  - GLOBAL_RATE_LIMIT=100, GLOBAL_RATE_WINDOW=60
+  - AGENT_SPAWN_RATE_LIMIT=5, AGENT_SPAWN_RATE_WINDOW=3600
+  - AGENT_MESSAGE_RATE_LIMIT=10, AGENT_MESSAGE_RATE_WINDOW=60
+- Updated QueuesModule to import RedisModule for GLM processor rate limiting
+- Typecheck passes
+
+- Files changed:
+  - backend/src/common/middleware/rate-limit.middleware.ts (created - middleware with IP/user key extraction)
+  - backend/src/common/decorators/rate-limit.decorator.ts (created - decorators and interceptors)
+  - backend/src/main.ts (modified - added RateLimitInterceptor setup with RedisService)
+  - backend/src/agents/agents.controller.ts (modified - added @AgentSpawnRateLimit decorator)
+  - backend/src/queues/processors/glm.processor.ts (modified - added rate limit check before processing)
+  - backend/src/queues/queues.module.ts (modified - imported RedisModule)
+  - .env.example (modified - added rate limiting environment variables)
+  - scripts/ralph/prd.json (modified - set US-026 passes to true)
+
+- **Learnings for future iterations:**
+  - RateLimitInterceptor needs static setRedisService() method since interceptors are instantiated before modules
+  - Use app.get(RedisService) in bootstrap to get service and pass to interceptor before requests start
+  - Rate limit keys should use prefixes to avoid collisions (global, agent-spawn, agent-message)
+  - IP extraction from request: check x-forwarded-for (split by comma), x-real-ip, then socket.remoteAddress
+  - For authenticated requests, use user.userId for rate limit keys; for unauthenticated, use IP address
+  - Rate limit check in processors (GLM) uses RedisService directly - no decorator needed for queue jobs
+  - BullMQ job data includes agentId for rate limit key generation
+  - 429 error response includes limit, remaining (0), and reset timestamp for client retry calculation
+  - Convenience decorators (@AgentSpawnRateLimit) reduce boilerplate on controller methods
+  - GLM API requests already queued via BullMQ - queue respects concurrency limits (5 concurrent jobs)
+  - Rate limiting prevents spam but doesn't prevent all abuse - combine with other security measures
+  - Rate limit headers follow RFC 6585: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After
+  - Reset timestamp is Unix epoch time (seconds), not milliseconds
+  - Environment variables with sensible defaults make rate limits configurable per deployment
+---

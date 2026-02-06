@@ -7,10 +7,12 @@ import { CleanupProcessor } from './processors/cleanup.processor';
 import { NotificationsProcessor } from './processors/notifications.processor';
 import { GlmModule } from '../glm/glm.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     GlmModule,
+    RedisModule,
     forwardRef(() => WebsocketModule),
     BullModule.forRoot({
       connection: {

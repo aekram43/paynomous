@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { AgentsService } from './agents.service';
 import { SpawnAgentDto } from './dto/spawn-agent.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AgentSpawnRateLimit } from '../common/decorators/rate-limit.decorator';
 
 @ApiTags('agents')
 @Controller('agents')
@@ -12,9 +13,11 @@ export class AgentsController {
   constructor(private agentsService: AgentsService) {}
 
   @Post('spawn')
+  @AgentSpawnRateLimit()
   @ApiOperation({ summary: 'Spawn a new AI agent' })
   @ApiResponse({ status: 201, description: 'Agent created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
   async spawnAgent(@Request() req, @Body() spawnDto: SpawnAgentDto) {
     return this.agentsService.spawnAgent(req.user.userId, spawnDto);
   }

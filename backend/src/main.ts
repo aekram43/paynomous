@@ -4,10 +4,16 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { RedisService } from './redis/redis.service';
+import { RateLimitInterceptor } from './common/decorators/rate-limit.decorator';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
+
+  // Get Redis service for rate limiting
+  const redisService = app.get(RedisService);
+  RateLimitInterceptor.setRedisService(redisService);
 
   // Security: Helmet.js middleware for security headers
   // Prevents XSS, clickjacking, MIME-sniffing, and other vulnerabilities
