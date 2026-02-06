@@ -652,3 +652,58 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Frontend should be developed separately from backend (different package.json files)
   * Next.js 15 includes built-in TypeScript support with next-env.d.ts type definitions
 ---
+
+## 2026-02-06 15:30 - US-016
+- What was implemented:
+  * Wagmi and RainbowKit integration for Web3 wallet connectivity
+  * Custom useWalletAuth hook with challenge-response authentication flow
+  * Zustand store (auth-store.ts) for auth state management with localStorage persistence
+  * API client with automatic token refresh interceptor (apiClient)
+  * Header component with wallet connection button and address display
+  * RainbowKit dark theme integration with wallet selection modal
+  * Disconnect wallet functionality with proper cleanup
+  * Error handling for rejected signatures (UserRejectedRequestError detection)
+  * Auto-authentication on wallet connection
+  * Token verification on mount for existing sessions
+  * Button UI component with variants (default, outline, ghost)
+  * Utility functions (cn for className merging, formatWalletAddress, formatPrice)
+  * Updated landing page with gradient styling and feature highlights
+  * Added NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to .env.example
+  * All TypeScript type checks passing
+
+- Files changed:
+  * frontend/app/layout.tsx (modified - imported Providers)
+  * frontend/app/page.tsx (modified - redesigned landing page with Header)
+  * frontend/app/providers.tsx (created - Wagmi, QueryClient, RainbowKit providers)
+  * frontend/lib/config/wagmi.ts (created - wagmi config with WalletConnect)
+  * frontend/lib/api/auth.ts (created - auth API client with refresh logic)
+  * frontend/lib/hooks/useWalletAuth.ts (created - wallet auth hook)
+  * frontend/lib/store/auth-store.ts (created - Zustand auth store)
+  * frontend/lib/utils.ts (created - utility functions)
+  * frontend/components/Header.tsx (created - header with wallet connection)
+  * frontend/components/ui/button.tsx (created - button component)
+  * frontend/package.json (modified - added @rainbow-me/rainbowkit, clsx, tailwind-merge)
+  * frontend/package-lock.json (modified - new dependencies)
+  * .env.example (modified - added WalletConnect project ID)
+
+- **Learnings for future iterations:**
+  * RainbowKit requires React 18 but works with React 19 using --legacy-peer-deps
+  * wagmi v2 requires createConfig instead of getDefaultConfig for custom configuration
+  * WalletConnect requires a project ID from https://cloud.walletconnect.com/
+  * wagmi connectors need separate configuration: injected() for browser wallets, walletConnect() for mobile
+  * RainbowKitProvider wraps the app and provides ConnectButton component with built-in modal
+  * Zustand persist middleware uses localStorage with configurable storage key name
+  * axios interceptors enable automatic token refresh without manual intervention
+  * useWalletAuth hook auto-triggers authentication when wallet connects but not authenticated
+  * Signature rejection (UserRejectedRequestError) should be handled gracefully with user-friendly messages
+  * Auto-reconnection on mount: Check if wallet is connected and authenticated, verify token validity
+  * Token refresh flow: On 401 error, attempt refresh with refreshToken, if fails redirect to home
+  * @tanstack/react-query is required by wagmi for cache management
+  * RainbowKit includes darkTheme() for built-in dark mode styling
+  * ConnectButton component can be customized with accountStatus and showBalance props
+  * Path aliases (@/*) are already configured in tsconfig.json for clean imports
+  * clsx + tailwind-merge is the standard pattern for conditional Tailwind classes
+  * Gradients in Tailwind: from-purple-500 to-pink-500 for vibrant CTAs
+  * flex-wrap with gap is ideal for responsive card layouts
+  * animate-pulse creates breathing effect for status indicators
+---
