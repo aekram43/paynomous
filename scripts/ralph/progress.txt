@@ -923,3 +923,47 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Layout uses grid: 3 columns for chat, 1 column for agent sidebar on large screens
   * Chat window height should be fixed (500px) with overflow-y-auto for scrolling
 ---
+
+## 2026-02-06 18:30 - US-020
+- What was implemented:
+  * Deal verification progress indicator with animated stages (ownership → balance → consensus → execution)
+  * Deal locked notification shows buyer, seller, and price with "Verifying ownership..." message
+  * Deal verifying notification with:
+    - Spinning gear icon and stage name
+    - Progress bar (0-100%)
+    - Four stage indicators with icons: 🔐 Ownership, 💰 Balance, 🤝 Consensus, ⚡ Execution
+    - Active stage highlighting
+  * Deal completed modal/toast with:
+    - Success icon (✅) and celebration animation
+    - Buyer and seller names
+    - NFT name and collection
+    - Final price
+    - Transaction hash with link to block explorer (opens in new tab)
+  * Error notification for failed deals with ❌ icon and error message
+  * Confetti celebration animation on successful deal (50 colored particles falling)
+  * Agents marked as 'completed' status after successful deal
+  * Agents marked as 'deal_locked' status when deal is locked
+  * Auto-dismiss timers: 5 seconds for errors, 8 seconds for completed deals
+  * Block explorer URL configurable via NEXT_PUBLIC_BLOCK_EXPLORER_URL environment variable
+
+- Files changed:
+  * frontend/app/rooms/[id]/page.tsx (modified - enhanced deal notifications, added Confetti component)
+  * .env.example (modified - added NEXT_PUBLIC_BLOCK_EXPLORER_URL)
+  * scripts/ralph/prd.json (modified - set US-020 passes to true)
+
+- **Learnings for future iterations:**
+  * Deal verification flow: locked → verifying (with progress) → completed/failed
+  * Progress stages: ownership, balance, consensus, execution (map to backend verification stages)
+  * Confetti animation uses styled-jsx for keyframe animations (falling particles with rotation)
+  * Block explorer URLs should be configurable via environment variables for different networks
+  * Transaction hash display: truncate to first 10 and last 8 characters for readability
+  * WebSocket callbacks for deal events: onDealLocked, onDealVerifying, onDealCompleted, onError
+  * Deal verification progress includes: dealId, progress (0-100), stage name
+  * Agent status transitions: active → deal_locked → completed (success) or back to active (failure)
+  * Notifications use fixed positioning (top-20 right-4) with max-width for responsiveness
+  * Animation classes: animate-pulse for attention, animate-spin for loading indicators
+  * External links: use target="_blank" and rel="noopener noreferrer" for security
+  * Confetti duration: 5 seconds animation then auto-hide to avoid performance impact
+  * Progress bar uses transition-all duration-300 for smooth updates
+  * Stage indicators use flex-col with emoji icons and labels for clear visual hierarchy
+---
