@@ -38,4 +38,11 @@ export class AgentsController {
   async deleteAgent(@Request() req, @Param('id') id: string) {
     return this.agentsService.deleteAgent(id, req.user.userId);
   }
+
+  @Get('my')
+  @ApiOperation({ summary: 'Get all agents for authenticated user' })
+  @ApiResponse({ status: 200, description: 'List of user agents' })
+  async findMyAgents(@Request() req) {
+    return this.agentsService.findMyAgents(req.user.userId);
+  }
 }

@@ -3,9 +3,12 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useWalletAuth } from '@/lib/hooks/useWalletAuth';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { Home, LayoutDashboard } from 'lucide-react';
 
 export function Header() {
   const { isAuthenticated, user, disconnect, isPending } = useWalletAuth();
+  const router = useRouter();
 
   return (
     <header className="border-b border-gray-800 bg-gray-950/50 backdrop-blur-xl sticky top-0 z-50">
@@ -24,6 +27,15 @@ export function Header() {
         <div className="flex items-center gap-4">
           {isAuthenticated && user ? (
             <div className="flex items-center gap-3">
+              {/* Dashboard button */}
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg text-purple-400 hover:bg-purple-500/20 transition-colors"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="text-sm">Dashboard</span>
+              </button>
+
               {/* Connected wallet info */}
               <div className="hidden sm:flex items-center gap-2 text-sm text-gray-400">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>

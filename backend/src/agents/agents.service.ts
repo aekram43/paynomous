@@ -194,4 +194,51 @@ export class AgentsService {
 
     return { success: true, message: 'Agent deleted successfully' };
   }
+
+  async findMyAgents(userId: string) {
+    const agents = await this.prisma.agent.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        room: true,
+        nft: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      avatar: agent.avatar,
+      role: agent.role,
+      status: agent.status,
+      strategy: agent.strategy,
+      personality: agent.communicationStyle,
+      minPrice: agent.minPrice,
+      maxPrice: agent.maxPrice,
+      startingPrice: agent.startingPrice,
+      messagesSent: agent.messagesSent,
+      roomId: agent.roomId,
+      room: {
+        id: agent.room.id,
+        name: agent.room.name,
+        collection: agent.room.collection,
+      },
+      nftId: agent.nftId,
+      nft: agent.nft
+        ? {
+            id: agent.nft.id,
+            name: agent.nft.name,
+            collection: agent.nft.collection,
+            imageUrl: agent.nft.imageUrl,
+          }
+        : null,
+      dealId: agent.dealId,
+      createdAt: agent.createdAt,
+      updatedAt: agent.updatedAt,
+    }));
+  }
 }

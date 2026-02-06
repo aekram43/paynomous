@@ -68,3 +68,9 @@ export async function deleteAgent(agentId: string): Promise<{ message: string }>
   const response = await apiClient.delete(`${API_URL}/agents/${agentId}`);
   return response.data;
 }
+
+// Get all agents for authenticated user
+export async function getMyAgents(): Promise<{ agents: Agent[] }> {
+  const response = await apiClient.get(`${API_URL}/agents/my`);
+  return response.data;
+}
