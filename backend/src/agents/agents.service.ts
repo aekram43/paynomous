@@ -100,7 +100,7 @@ export class AgentsService {
       status: agent.status,
       strategy: agent.strategy,
       personality: agent.communicationStyle,
-      currentPrice: agent.startingPrice,
+      currentPrice: agent.startingPrice?.toString() || '0',
       room: {
         id: agent.room.id,
         name: agent.room.name,
@@ -136,9 +136,9 @@ export class AgentsService {
       status: agent.status,
       strategy: agent.strategy,
       personality: agent.communicationStyle,
-      currentPrice: agent.startingPrice,
-      minPrice: agent.minPrice,
-      maxPrice: agent.maxPrice,
+      currentPrice: agent.startingPrice?.toString() || '0',
+      minPrice: agent.minPrice?.toNumber() || 0,
+      maxPrice: agent.maxPrice?.toNumber() || 0,
       messageCount: agent.messagesSent,
       room: {
         id: agent.room.id,

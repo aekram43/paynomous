@@ -40,13 +40,8 @@ describe('AgentsService', () => {
     await prisma.$disconnect();
   });
 
-  afterEach(async () => {
-    // Clean up after each test
-    await prisma.agent.deleteMany({});
-    await prisma.nft.deleteMany({});
-    await prisma.room.deleteMany({});
-    await prisma.user.deleteMany({});
-  });
+  // No afterEach cleanup - tests create unique data with beforeEach
+
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -122,7 +117,7 @@ describe('AgentsService', () => {
       expect(result.status).toBe('active');
       expect(result.strategy).toBe(spawnDto.strategy);
       expect(result.personality).toBe(spawnDto.personality);
-      expect(result.currentPrice).toBe(spawnDto.startingPrice.toString());
+      expect(result.currentPrice).toEqual(String(spawnDto.startingPrice));
       expect(result.room.id).toBe(testRoom.id);
       expect(result.owner).toBe(testUser.walletAddress);
 
@@ -162,7 +157,7 @@ describe('AgentsService', () => {
 
       expect(result).toBeDefined();
       expect(result.role).toBe('seller');
-      expect(result.currentPrice).toBe(spawnDto.startingPrice.toString());
+      expect(result.currentPrice).toEqual(String(spawnDto.startingPrice));
 
       // Verify Redis was called for floor price
       expect(mockRedisService.updateFloorPrice).toHaveBeenCalledWith(
@@ -295,7 +290,7 @@ describe('AgentsService', () => {
       expect(result?.status).toBe('active');
       expect(result?.strategy).toBe('competitive');
       expect(result?.personality).toBe('casual');
-      expect(result?.currentPrice).toBe(45);
+      expect(result?.currentPrice).toBe('45');
       expect(result?.minPrice).toBe(40);
       expect(result?.maxPrice).toBe(60);
       expect(result?.messageCount).toBe(5);
