@@ -243,4 +243,10 @@ export class WebsocketGateway
     });
     this.logger.log(`Broadcast agent_left to room ${roomId}`);
   }
+
+  // Generic broadcast method for custom events
+  broadcastMessage(roomId: string, eventData: any) {
+    this.server.to(roomId).emit(eventData.type, eventData);
+    this.logger.log(`Broadcast ${eventData.type} to room ${roomId}`);
+  }
 }
