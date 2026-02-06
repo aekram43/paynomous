@@ -605,3 +605,50 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Include Relations: Always include necessary relations (user, nft, room) when querying agents/deals for complete data
   * Real-time Flow: GLM response → database save → WebSocket broadcast → deal matching → verification queue → more broadcasts
 ---
+
+## 2026-02-06 09:30 - US-015
+- What was implemented:
+  * Next.js 15.1.6 frontend scaffolded with App Router architecture
+  * TypeScript configured with strict mode enabled (tsconfig.json)
+  * Tailwind CSS fully integrated with PostCSS and custom theme configuration
+  * Web3 dependencies installed: wagmi 2.14.0 and viem 2.24.0 for wallet connectivity
+  * Socket.io-client 4.8.0 installed for WebSocket real-time communication
+  * Axios 1.7.9 installed for HTTP requests to backend API
+  * Zustand 4.5.0 installed for lightweight state management
+  * ESLint and Prettier configured for code quality and formatting
+  * Development server configured to run on port 3002
+  * Basic app structure with root layout and home page
+  * Inter font from Google Fonts for typography
+  * Dark mode support with CSS custom properties
+  * All TypeScript type checks passing
+
+- Files changed:
+  * frontend/package.json (created - all dependencies configured)
+  * frontend/package-lock.json (created - dependency lock file)
+  * frontend/tsconfig.json (created - TypeScript strict mode config)
+  * frontend/next.config.ts (created - Next.js configuration)
+  * frontend/tailwind.config.ts (created - Tailwind CSS configuration)
+  * frontend/postcss.config.mjs (created - PostCSS with Tailwind)
+  * frontend/.eslintrc.json (created - ESLint configuration)
+  * frontend/.prettierrc (created - Prettier configuration)
+  * frontend/.gitignore (created - Next.js ignore patterns)
+  * frontend/app/layout.tsx (created - root layout with metadata)
+  * frontend/app/page.tsx (created - home page component)
+  * frontend/app/globals.css (created - Tailwind directives and global styles)
+
+- **Learnings for future iterations:**
+  * Next.js 15 uses React 19 which has some breaking changes from React 18
+  * App Router is the recommended approach for new Next.js projects (vs Pages Router)
+  * Next.js dev server port is configured via -p flag in package.json scripts
+  * Tailwind CSS requires three files: tailwind.config.ts, postcss.config.mjs, and @tailwind directives in CSS
+  * wagmi requires @tanstack/react-query as a peer dependency for Web3 wallet management
+  * TypeScript strict mode helps catch errors early, especially with Web3 types
+  * Zustand is lighter than Redux and perfect for small to medium frontend state management
+  * ESLint config extends "next" which includes React and TypeScript linting rules
+  * Next.js automatically creates .next build directory (should be gitignored)
+  * CSS custom properties (--background, --foreground) enable easy theming and dark mode
+  * Inter font can be imported directly from next/font/google for optimized font loading
+  * npm run typecheck uses tsc --noEmit to check types without building
+  * Frontend should be developed separately from backend (different package.json files)
+  * Next.js 15 includes built-in TypeScript support with next-env.d.ts type definitions
+---
