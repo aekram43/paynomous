@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
+import { AppLoggerService, LogContext } from '../logger/logger.service';
 
 export interface Agent {
   id: string;
@@ -31,13 +32,20 @@ export interface GLMResponse {
   sentiment: 'positive' | 'negative' | 'neutral';
 }
 
+export interface GlmRequestOptions {
+  retryAttempt?: number;
+  maxRetries?: number;
+}
+
 @Injectable()
 export class GlmService {
   private readonly logger = new Logger(GlmService.name);
+  private readonly appLogger: AppLoggerService;
   private readonly apiUrl: string;
   private readonly apiKey: string;
 
   constructor() {
+    this.appLogger = new AppLoggerService(GlmService.name);
     this.apiUrl = process.env.GLM_API_URL || 'https://api.z.ai/api/paas/v4';
     this.apiKey = process.env.GLM_API_KEY || '';
 
@@ -53,7 +61,17 @@ export class GlmService {
     agent: Agent,
     roomContext: RoomContext,
     triggerMessage: string,
+    options?: GlmRequestOptions,
   ): Promise<GLMResponse> {
+    const endpoint = `${this.apiUrl}/chat/completions`;
+    const logContext: LogContext = {
+      agentId: agent.id,
+      agentName: agent.name,
+      roomId: roomContext.roomId,
+      retryAttempt: options?.retryAttempt,
+      maxRetries: options?.maxRetries,
+    };
+
     try {
       // Build system prompt
       const systemPrompt = this.buildSystemPrompt(agent, roomContext);
@@ -63,7 +81,7 @@ export class GlmService {
 
       // Call GLM API
       const response = await axios.post(
-        `${this.apiUrl}/chat/completions`,
+        endpoint,
         {
           model: 'glm-4',
           messages: [
@@ -93,7 +111,17 @@ export class GlmService {
       // Process response
       return this.processResponse(message);
     } catch (error) {
-      this.logger.error('GLM API error:', error);
+      // Log API failure with retry information
+      if (error instanceof Error) {
+        this.appLogger.logApiFailure(
+          'GLM',
+          endpoint,
+          error,
+          options?.retryAttempt,
+          options?.maxRetries,
+          logContext,
+        );
+      }
 
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;

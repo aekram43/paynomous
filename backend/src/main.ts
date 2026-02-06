@@ -4,12 +4,16 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { RedisService } from './redis/redis.service';
 import { RateLimitInterceptor } from './common/decorators/rate-limit.decorator';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
+
+  // Apply request ID middleware for tracing
+  app.use(new RequestIdMiddleware().use);
 
   // Get Redis service for rate limiting
   const redisService = app.get(RedisService);

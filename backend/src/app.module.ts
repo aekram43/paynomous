@@ -12,9 +12,11 @@ import { NftsModule } from './nfts/nfts.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { QueuesModule } from './queues/queues.module';
 import { GlmModule } from './glm/glm.module';
+import { LoggerModule } from './logger/logger.module';
 
 @Module({
   imports: [
+    LoggerModule,
     RedisModule,
     RustModule,
     GlmModule,

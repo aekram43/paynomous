@@ -1116,3 +1116,58 @@ Started: Thu Feb  5 03:51:30 +07 2026
   - Reset timestamp is Unix epoch time (seconds), not milliseconds
   - Environment variables with sensible defaults make rate limits configurable per deployment
 ---
+
+## [2026-02-06] - US-028: Error Handling and Logging
+- What was implemented:
+  * Installed Winston and winston-daily-rotate-file for structured logging with daily log rotation
+  * Created AppLoggerService (named to avoid conflict with NestJS LoggerService) with:
+    - Structured logging with request IDs for tracing
+    - Log levels: error, warn, info, debug, verbose
+    - Daily log rotation (application-YYYY-MM-DD.log, error-YYYY-MM-DD.log)
+    - Separate error logs with 30-day retention (all logs 14-day retention)
+    - Console output in development, file-only in production
+    - Specialized logging methods: logApiFailure() with retry info, logBlockchainFailure() with context, logCritical()
+  * Created RequestIdMiddleware for unique request ID generation and X-Request-ID header tracking
+  * Created global LoggerModule exporting AppLoggerService
+  * Enhanced GLM service with API failure logging including retryAttempt and maxRetries context
+  * Enhanced Rust service with blockchain failure logging for all blockchain operations:
+    - Signature verification failures
+    - BFT consensus failures
+    - Escrow execution failures
+    - NFT ownership query failures
+    - Balance query failures
+  * Updated main.ts to apply RequestIdMiddleware
+  * Updated .env.example with LOG_DIR, LOG_LEVEL environment variables
+  * Added /logs to backend/.gitignore
+
+- Files changed:
+  * backend/package.json (modified - added winston, winston-daily-rotate-file, uuid, @types/uuid)
+  * backend/src/logger/logger.service.ts (created - AppLoggerService with Winston)
+  * backend/src/logger/logger.module.ts (created - global logging module)
+  * backend/src/common/middleware/request-id.middleware.ts (created - request ID generation middleware)
+  * backend/src/main.ts (modified - imported and applied RequestIdMiddleware)
+  * backend/src/app.module.ts (modified - imported LoggerModule)
+  * backend/src/glm/glm.service.ts (modified - added appLogger with API failure tracking)
+  * backend/src/rust/rust.service.ts (modified - added appLogger with blockchain failure tracking)
+  * .env.example (modified - added LOG_DIR, LOG_LEVEL)
+  * backend/.gitignore (modified - added /logs)
+  * scripts/ralph/prd.json (modified - set US-028 passes to true)
+
+- **Learnings for future iterations:**
+  - Winston daily rotate file: Use `import DailyRotateFile from 'winston-daily-rotate-file'` (default import) not `import * as DailyRotateFile`
+  - NestJS has a built-in LoggerService class - naming custom logger `LoggerService` causes conflict, use `AppLoggerService` instead
+  - Request ID middleware should attach ID to both req.id and req.requestId for consistency
+  - X-Request-ID header allows client-side tracing - extract from header if present, otherwise generate new UUID
+  - Log rotation configuration: maxSize (20m), maxFiles ('14d'), datePattern ('YYYY-MM-DD')
+  - Separate error log file (error-%DATE%.log) with level: 'error' filter for easy error monitoring
+  - Production vs development logging: production writes to files only, development writes to both console and files
+  - Environment variables: LOG_DIR (default: 'logs'), LOG_LEVEL (default: debug in dev, info in prod)
+  - Winston format.timestamp() with format: 'YYYY-MM-DD HH:mm:ss' for consistent timestamps
+  - Winston format.printf() allows custom log format with timestamp, level, context, and metadata
+  - API failure logging should include: endpoint, error name/message, retryAttempt, maxRetries
+  - Blockchain failure logging should include: operation type, transaction type, dealId/agentId context
+  - LogContext interface supports requestId, userId, walletAddress, agentId, dealId, roomId for tracing
+  - Critical errors use logCritical() method with critical: true flag for filtering/alerting
+  - Stack traces are included automatically via winston.format.errors({ stack: true })
+  - UUID v4 (uuid.v4()) is sufficient for request ID generation - no need for ULID or nanoid
+---

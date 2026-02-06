@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import { AppLoggerService, LogContext } from '../logger/logger.service';
 
 // Request/Response types matching Rust service
 export interface VerifySignatureRequest {
@@ -80,10 +81,12 @@ export interface BalanceResponse {
 @Injectable()
 export class RustService {
   private readonly logger = new Logger(RustService.name);
+  private readonly appLogger: AppLoggerService;
   private readonly client: AxiosInstance;
   private readonly serviceUrl: string;
 
   constructor() {
+    this.appLogger = new AppLoggerService(RustService.name);
     this.serviceUrl = process.env.RUST_SERVICE_URL || 'http://localhost:8080';
     this.client = axios.create({
       baseURL: this.serviceUrl,
@@ -104,6 +107,7 @@ export class RustService {
     signature: string,
     publicKey: string,
   ): Promise<VerifySignatureResponse> {
+    const endpoint = `${this.serviceUrl}/verify-signature`;
     try {
       this.logger.debug(`Verifying signature for message: ${message}`);
 
@@ -121,11 +125,16 @@ export class RustService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(
-        `Failed to verify signature: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Rust service signature verification failed: ${error.message}`);
+      if (error instanceof Error) {
+        const logContext: LogContext = { operation: 'signature_verification' };
+        this.appLogger.logBlockchainFailure(
+          'verify_signature',
+          'Ed25519',
+          error,
+          logContext,
+        );
+      }
+      throw new Error(`Rust service signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -138,6 +147,7 @@ export class RustService {
     buyerBalance: number,
     signatures: string[],
   ): Promise<ConsensusResponse> {
+    const endpoint = `${this.serviceUrl}/run-consensus`;
     try {
       this.logger.log(
         `Running BFT consensus for deal ${dealId} (NFT: ${nftOwnership}, Balance: ${buyerBalance}, Sigs: ${signatures.length})`,
@@ -175,11 +185,20 @@ export class RustService {
         executionTimeMs: result.executionTimeMs,
       };
     } catch (error) {
-      this.logger.error(
-        `Failed to run consensus for deal ${dealId}: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Rust service consensus failed: ${error.message}`);
+      if (error instanceof Error) {
+        const logContext: LogContext = {
+          dealId,
+          operation: 'bft_consensus',
+          verifierCount: 7,
+        };
+        this.appLogger.logBlockchainFailure(
+          'run_consensus',
+          'BFT',
+          error,
+          logContext,
+        );
+      }
+      throw new Error(`Rust service consensus failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -193,6 +212,7 @@ export class RustService {
     nftId: string,
     price: number,
   ): Promise<EscrowResponse> {
+    const endpoint = `${this.serviceUrl}/execute-escrow`;
     try {
       this.logger.log(
         `Executing escrow for deal ${dealId}: ${nftId} from ${sellerAddress} to ${buyerAddress} for ${price} USDC`,
@@ -215,11 +235,23 @@ export class RustService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(
-        `Failed to execute escrow for deal ${dealId}: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Rust service escrow execution failed: ${error.message}`);
+      if (error instanceof Error) {
+        const logContext: LogContext = {
+          dealId,
+          operation: 'escrow_execution',
+          buyerAddress,
+          sellerAddress,
+          nftId,
+          price,
+        };
+        this.appLogger.logBlockchainFailure(
+          'execute_escrow',
+          'NFT+USDC transfer',
+          error,
+          logContext,
+        );
+      }
+      throw new Error(`Rust service escrow execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -231,6 +263,7 @@ export class RustService {
     tokenId: string,
     ownerAddress: string,
   ): Promise<NftOwnershipResponse> {
+    const endpoint = `${this.serviceUrl}/query-nft-ownership`;
     try {
       this.logger.debug(
         `Querying NFT ownership: collection=${collection}, tokenId=${tokenId}, owner=${ownerAddress}`,
@@ -251,11 +284,21 @@ export class RustService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(
-        `Failed to query NFT ownership: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Rust service NFT ownership query failed: ${error.message}`);
+      if (error instanceof Error) {
+        const logContext: LogContext = {
+          operation: 'nft_ownership_query',
+          collection,
+          tokenId,
+          ownerAddress,
+        };
+        this.appLogger.logBlockchainFailure(
+          'query_nft_ownership',
+          'ARK Network',
+          error,
+          logContext,
+        );
+      }
+      throw new Error(`Rust service NFT ownership query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -263,6 +306,7 @@ export class RustService {
    * Query USDC balance on ARK Network
    */
   async queryUsdcBalance(address: string): Promise<BalanceResponse> {
+    const endpoint = `${this.serviceUrl}/query-usdc-balance`;
     try {
       this.logger.debug(`Querying USDC balance for address: ${address}`);
 
@@ -279,11 +323,19 @@ export class RustService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(
-        `Failed to query USDC balance: ${error.message}`,
-        error.stack,
-      );
-      throw new Error(`Rust service balance query failed: ${error.message}`);
+      if (error instanceof Error) {
+        const logContext: LogContext = {
+          operation: 'balance_query',
+          walletAddress: address,
+        };
+        this.appLogger.logBlockchainFailure(
+          'query_usdc_balance',
+          'USDC',
+          error,
+          logContext,
+        );
+      }
+      throw new Error(`Rust service balance query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -295,7 +347,7 @@ export class RustService {
       const response = await this.client.get('/health');
       return response.status === 200;
     } catch (error) {
-      this.logger.error(`Rust service health check failed: ${error.message}`);
+      this.logger.error(`Rust service health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     }
   }
