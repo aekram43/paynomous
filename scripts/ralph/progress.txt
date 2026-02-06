@@ -1019,3 +1019,21 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Date range filter not implemented for MVP (status filter is sufficient)
   * Real-time updates for active agents: Infrastructure in place (useWebSocket imported) but requires global connection
 ---
+## [2026-02-06] - US-024: Unit Testing Suite
+- Created comprehensive unit tests for agents, rooms, and auth services
+- Fixed Prisma Decimal serialization issues (using .toString() for JSON responses)
+- Total tests created:
+  - agents.service.spec.ts: 15 tests (spawnAgent, findOne, deleteAgent)
+  - rooms.service.spec.ts: 9 tests (findAll, findOne, getStats with Redis caching)
+  - auth.service.spec.ts: 15 tests (generateChallenge, verifySignature, refreshAccessToken, getUserById)
+  - glm.service.spec.ts: existing tests already present
+- Code changes:
+  - agents.service.ts: Added explicit Decimal to string conversion for currentPrice
+  - All test files use Prisma with proper mock setup for Redis and WebSocket services
+- **Learnings for future iterations:**
+  - Prisma Decimal type must be explicitly converted using .toString() for JSON serialization
+  - Test isolation is challenging when running all tests together - consider using unique test data per test
+  - afterEach cleanup can interfere with other tests - use beforeAll/afterAll cleanup instead
+  - ethers v6 uses Wallet.signMessage() for signing, not a standalone signMessage function
+  - When testing cryptographic signatures, the exact message format must match between signing and verification
+---
