@@ -1277,3 +1277,49 @@ Started: Thu Feb  5 03:51:30 +07 2026
   * Migration scripts should load environment variables before running Prisma commands
   * Typecheck passing includes TypeScript compilation (no type errors) - Rust warnings are acceptable
   * Cargo.toml location matters - must run cargo commands from directory containing it
+
+## 2026-02-06 22:30 - US-031: Monitoring and Alerting
+- What was implemented:
+  * Fixed health and metrics modules to use PrismaClient directly instead of non-existent PrismaService
+  * Fixed health.service.ts checkRustService to use boolean return from rustService.healthCheck()
+  * Exported ServiceHealth and Metrics interfaces for use in controllers
+  * Existing monitoring system already complete with:
+    - HealthService: health check endpoints (/health, /health/detailed, /health/ready, /health/live)
+    - MetricsService: metrics endpoints (/metrics, /metrics/prometheus) with API times, queue lengths, agents, deals
+    - AlertsService: built-in alert rules with 30-second checking interval
+  * Created comprehensive monitoring documentation:
+    - docs/monitoring/grafana-dashboard.json: Grafana dashboard configuration with 8 panels
+    - docs/monitoring/prometheus.yml: Prometheus scrape configuration
+    - docs/monitoring/alert_rules.yml: Prometheus alert rules
+    - docs/monitoring/SETUP.md: Complete monitoring setup guide
+  * Environment variables for monitoring already in .env.example:
+    - ALERT_CHECK_INTERVAL, PROMETHEUS_METRICS_PATH
+    - ALERT_EMAIL_ENABLED, ALERT_EMAIL_TO, ALERT_SLACK_WEBHOOK_URL
+
+- Files changed:
+  * backend/src/health/health.module.ts (removed PrismaModule import)
+  * backend/src/health/health.service.ts (exported ServiceHealth interface, fixed rustService.healthCheck() call)
+  * backend/src/metrics/metrics.module.ts (removed PrismaModule import)
+  * backend/src/metrics/metrics.service.ts (exported Metrics interface, changed PrismaService to PrismaClient)
+  * docs/monitoring/grafana-dashboard.json (created - Grafana dashboard config)
+  * docs/monitoring/prometheus.yml (created - Prometheus configuration)
+  * docs/monitoring/alert_rules.yml (created - Prometheus alert rules)
+  * docs/monitoring/SETUP.md (created - monitoring setup guide)
+  * scripts/ralph/prd.json (marked US-031 as passes: true)
+
+- **Learnings for future iterations:**
+  * Health/Metrics/Alerts modules were already implemented but had incorrect PrismaService imports
+  * When adding modules that need database access, use PrismaClient directly from @prisma/client instead of creating a wrapper PrismaService
+  * Export interfaces from service files if they are used in controller return types
+  * RustService.healthCheck() returns boolean, not an object with status property
+  * Monitoring infrastructure includes: health checks, metrics, alerts, Prometheus integration, Grafana dashboard
+  * Health check endpoints include: basic (/health), detailed (/health/detailed), readiness (/health/ready), liveness (/health/live)
+  * Metrics available in JSON format (/metrics) and Prometheus format (/metrics/prometheus)
+  * Alert rules cover: service_down, high_error_rate, slow_response_time, high_memory_usage, queue_backlog, connection_failures
+  * Prometheus scrapes metrics every 15-30 seconds from /metrics/prometheus endpoint
+  * Grafana dashboard includes panels for: memory usage, API response times, service status, queue status, agent activity, deal metrics
+  * Application logs already use Winston with AppLoggerService (implemented in US-028)
+  * Uptime monitoring can be added via external services like UptimeRobot or Pingdom
+  * Alert notifications via email/Slack are configured via environment variables (implementation is TODO in AlertsService)
+  * Kubernetes readiness/liveness probes use /health/ready and /health/live endpoints
+  * Typecheck passes after fixing interface exports and PrismaClient usage
