@@ -1,0 +1,228 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletAddress  String   @unique @map("wallet_address") @db.VarChar(42)
+  nonce          String?  @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agents         Agent[]
+  swarms         Swarm[]
+  buyerDeals     Deal[]   @relation("BuyerDeals")
+  sellerDeals    Deal[]   @relation("SellerDeals")
+
+  @@index([walletAddress])
+  @@map("users")
+}
+
+model Nft {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collection String   @db.VarChar(50)
+  tokenId    String   @map("token_id") @db.VarChar(20)
+  name       String   @db.VarChar(100)
+  imageUrl   String?  @map("image_url") @db.Text
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  agents     Agent[]
+  deals      Deal[]
+
+  @@unique([collection, tokenId])
+  @@index([collection, tokenId])
+  @@map("nfts")
+}
+
+model Room {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @db.VarChar(100)
+  collection String   @db.VarChar(50)
+  status     String   @default("active") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agents     Agent[]
+  swarms     Swarm[]
+  deals      Deal[]
+  messages   Message[]
+
+  @@index([collection, status])
+  @@map("rooms")
+}
+
+model Agent {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  roomId              String    @map("room_id") @db.Uuid
+  swarmId             String?   @map("swarm_id") @db.Uuid
+
+  // Agent Config
+  name                String    @db.VarChar(50)
+  avatar              String?   @db.VarChar(10)
+  role                String    @db.VarChar(10)
+
+  // Personality
+  communicationStyle  String    @map("communication_style") @db.VarChar(20)
+  strategy            String    @db.VarChar(20)
+
+  // Mandate
+  nftId               String?   @map("nft_id") @db.Uuid
+  minPrice            Decimal?  @map("min_price") @db.Decimal(10, 2)
+  maxPrice            Decimal?  @map("max_price") @db.Decimal(10, 2)
+  startingPrice       Decimal?  @map("starting_price") @db.Decimal(10, 2)
+
+  // Status
+  status              String    @default("spawned") @db.VarChar(20)
+  dealId              String?   @map("deal_id") @db.Uuid
+
+  // Stats
+  messagesSent        Int       @default(0) @map("messages_sent")
+  negotiationTimeSeconds Int?   @map("negotiation_time_seconds")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room                Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  swarm               Swarm?    @relation(fields: [swarmId], references: [id], onDelete: SetNull)
+  nft                 Nft?      @relation(fields: [nftId], references: [id])
+  messages            Message[]
+  buyerDeals          Deal[]    @relation("BuyerAgent")
+  sellerDeals         Deal[]    @relation("SellerAgent")
+  performance         AgentPerformance?
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([swarmId])
+  @@index([status])
+  @@map("agents")
+}
+
+model Swarm {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  roomId         String   @map("room_id") @db.Uuid
+
+  preset         String   @db.VarChar(30)
+  totalAgents    Int      @map("total_agents")
+  buyersCount    Int      @map("buyers_count")
+  sellersCount   Int      @map("sellers_count")
+
+  status         String   @default("running") @db.VarChar(20)
+  dealsCompleted Int      @default(0) @map("deals_completed")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  agents         Agent[]
+
+  @@index([userId, roomId])
+  @@index([status])
+  @@map("swarms")
+}
+
+model Deal {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId          String    @map("room_id") @db.Uuid
+
+  // Parties
+  buyerAgentId    String    @map("buyer_agent_id") @db.Uuid
+  sellerAgentId   String    @map("seller_agent_id") @db.Uuid
+  buyerUserId     String    @map("buyer_user_id") @db.Uuid
+  sellerUserId    String    @map("seller_user_id") @db.Uuid
+
+  // Deal Details
+  nftId           String    @map("nft_id") @db.Uuid
+  finalPrice      Decimal   @map("final_price") @db.Decimal(10, 2)
+
+  // Status
+  status          String    @default("locked") @db.VarChar(20)
+
+  // Blockchain
+  txHash          String?   @map("tx_hash") @db.VarChar(66)
+  blockNumber     BigInt?   @map("block_number")
+
+  // Verification
+  consensusResult Json?     @map("consensus_result") @db.JsonB
+  verifiedAt      DateTime? @map("verified_at")
+
+  // Timestamps
+  lockedAt        DateTime  @default(now()) @map("locked_at")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  room            Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  buyerAgent      Agent     @relation("BuyerAgent", fields: [buyerAgentId], references: [id])
+  sellerAgent     Agent     @relation("SellerAgent", fields: [sellerAgentId], references: [id])
+  buyerUser       User      @relation("BuyerDeals", fields: [buyerUserId], references: [id])
+  sellerUser      User      @relation("SellerDeals", fields: [sellerUserId], references: [id])
+  nft             Nft       @relation(fields: [nftId], references: [id])
+
+  @@index([roomId])
+  @@index([status])
+  @@index([buyerUserId])
+  @@index([sellerUserId])
+  @@index([txHash])
+  @@map("deals")
+}
+
+model Message {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId         String    @map("room_id") @db.Uuid
+  agentId        String    @map("agent_id") @db.Uuid
+
+  // Summary fields (not full chat)
+  messageType    String    @map("message_type") @db.VarChar(20)
+  priceMentioned Decimal?  @map("price_mentioned") @db.Decimal(10, 2)
+  sentiment      String?   @db.VarChar(20)
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([agentId])
+  @@map("messages")
+}
+
+model AgentPerformance {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId                   String    @unique @map("agent_id") @db.Uuid
+
+  // Performance Metrics
+  dealsCompleted            Int       @default(0) @map("deals_completed")
+  avgNegotiationTimeSeconds Int?      @map("avg_negotiation_time_seconds")
+  bestDealPercentage        Decimal?  @map("best_deal_percentage") @db.Decimal(5, 2)
+  messagesSent              Int       @default(0) @map("messages_sent")
+
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  agent                     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@map("agent_performance")
+}

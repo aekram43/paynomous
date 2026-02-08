@@ -18,7 +18,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 1: Foundation - Week 1-2"
     },
     {
@@ -36,7 +36,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 1: Foundation - Week 1-2"
     },
     {
@@ -55,7 +55,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 1: Foundation - Week 1-2"
     },
     {
@@ -76,7 +76,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 2: Core Backend - Week 3-4"
     },
     {
@@ -95,7 +95,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 2: Core Backend - Week 3-4"
     },
     {
@@ -114,7 +114,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 2: Core Backend - Week 3-4"
     },
     {
@@ -133,7 +133,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 2: Core Backend - Week 3-4"
     },
     {
@@ -153,7 +153,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 3: AI Integration - Week 5"
     },
     {
@@ -172,7 +172,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 3: AI Integration - Week 5"
     },
     {
@@ -191,7 +191,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 3: AI Integration - Week 5"
     },
     {
@@ -210,7 +210,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 4: Blockchain Integration - Week 6"
     },
     {
@@ -229,7 +229,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 4: Blockchain Integration - Week 6"
     },
     {
@@ -248,7 +248,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 4: Blockchain Integration - Week 6"
     },
     {
@@ -271,7 +271,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 4: Blockchain Integration - Week 6"
     },
     {
@@ -291,7 +291,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -311,7 +311,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -330,7 +330,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -352,7 +352,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -373,7 +373,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -392,7 +392,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -412,7 +412,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 5: Frontend Development - Week 7-8"
     },
     {
@@ -432,7 +432,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 6: Swarm Mode - Week 9"
     },
     {
@@ -452,7 +452,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 6: Swarm Mode - Week 9"
     },
     {
@@ -472,8 +472,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "Phase 7: Testing & Polish - Week 10"
+      "passes": true,
+      "notes": "Phase 7: Testing & Polish - Week 10. Implemented tests for agents (15), rooms (9), auth (15), and glm services."
     },
     {
       "id": "US-025",
@@ -492,8 +492,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "Phase 7: Testing & Polish - Week 10"
+      "passes": true,
+      "notes": "Phase 7: Testing & Polish - Week 10. Implemented E2E tests for auth, agents, and rooms endpoints."
     },
     {
       "id": "US-026",
@@ -511,7 +511,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 7: Testing & Polish - Week 10"
     },
     {
@@ -531,7 +531,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 7: Testing & Polish - Week 10"
     },
     {
@@ -551,7 +551,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 7: Testing & Polish - Week 10"
     },
     {
@@ -571,7 +571,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 7: Testing & Polish - Week 10"
     },
     {
@@ -592,7 +592,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 8: Deployment Prep - Week 11"
     },
     {
@@ -611,7 +611,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 8: Deployment Prep - Week 11"
     },
     {
@@ -631,7 +631,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Phase 8: Deployment Prep - Week 11"
     }
   ]

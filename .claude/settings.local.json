@@ -7,7 +7,15 @@
       "Bash(./scripts/ralph/ralph.sh:*)",
       "Bash(npm install:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(docker --version:*)",
+      "Bash(open:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(pg_isready:*)",
+      "Bash(redis-cli:*)",
+      "Bash(docker exec:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)"
     ],
     "deny": [
       "Bash(sudo :*)",
@@ -17,13 +25,10 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chrome-devtools"
   ],
-  "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-  },
   "filesystem": {
     "write": {
       "allowList": [
@@ -31,5 +36,9 @@
       ]
     }
   },
-  "enableAllProjectMcpServers": true
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7"
+  }
 }
